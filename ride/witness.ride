@@ -1,0 +1,669 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEPARATOR = "__"
+let ARGS_SEPARATOR = "####" # ATTENTION -> must not have such a combination in args
+let KEY_INIT = "INIT"
+let KEY_MULTISIG = "MULTISIG"
+let KEY_STATUS = "STATUS"
+let KEY_PROXY_SEC_DEPO = "PROXY_SECURITY_DEPOSIT"
+let KEY_PROXY_SEC_DEPO_PER_EVENT = "PROXY_SECURITY_DEPOSIT_PER_EVENT"
+let KEY_WAVES_EVENT = "WAVES_EVENT"
+let KEY_WAVES_EVENT_SIZE = "WAVES_EVENT_SIZE"
+let KEY_WAVES_EVENT_STATUS = "WAVES_EVENT_STATUS"
+let KEY_WAVES_EVENT_PUBLISHED = "WAVES_EVENT_PUBLISHED"
+let KEY_CURRENT_EPOCH = "CURRENT_EPOCH"
+let KEY_SIZE = "SIZE"
+let KEY_WAVES_EVENT_CALLER = "WAVES_EVENT_CALLER"
+let KEY_WITNESSES_PER_EPOCH = "WITNESSES_PER_EPOCH"
+let KEY_WAVES_EVENT_EXECUTOR = "WAVES_EVENT_EXECUTOR"
+let KEY_REWARD_TOKEN_ADDRESS = "REWARD_TOKEN_ADDRESS"
+let KEY_REWARD_AMOUNT = "REWARD_AMOUNT"
+
+let FUNC_MINT_MANY = "mintMany"
+
+let EVENT_STATUS_PROCESSING = 1
+let EVENT_STATUS_CONFIRMED = 2
+let EVENT_STATUS_REJECTED = 3
+
+let MAX_INT = 9223372036854775807
+
+# ---------- Validation functions ----------
+
+func _validateAddress(address_: String, err_: String) = {
+    match addressFromString(address_) {
+        case a:Address => true
+        case _ => throw(err_)
+    }
+}
+
+func _validateAsset(assetId_: String, err_: String) = {
+    match assetInfo(fromBase58String(assetId_)) {
+        case a:Asset => true
+        case _ => throw(err_)
+    }
+}
+
+func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: String) = {
+    if val_ < lowerBoundary_ || val_ > upperBoundary_ then
+        throw(err_)
+    else true
+}
+
+func _validateString(val_: String, err_: String) = {
+    if val_.size() <= 0 then
+        throw(err_)
+    else true
+}
+
+func _validatePaymentsSize(payments_: List[AttachedPayment], target_: Int, err_: String) = {
+    if payments_.size() != target_ then
+        throw(err_)
+    else true
+}
+
+func _validatePaymentAsset(payment_: AttachedPayment, asset_: ByteVector|Unit, err_: String) = {
+    if payment_.assetId != asset_ then
+        throw(err_)
+    else true
+}
+
+func _validateEventIdx(val_: Int, max_: Int, err_: String) = {
+    if val_ < 0 || val_ >= max_ then
+        throw(err_)
+    else true
+}
+
+func _validateEventStatus(val_: Int, err_: String) = {
+    if val_ < EVENT_STATUS_PROCESSING || val_ > EVENT_STATUS_REJECTED then
+        throw(err_)
+    else true
+}
+
+func _validatePublicKey(publicKey_: String, err_: String) = {
+    if publicKey_.fromBase58String().size() != 32 then
+        throw(err_)
+    else true
+}
+
+func _validatePublicKeys(publicKeys_: List[String], err_: String) = {
+    func foldFunc(acc: (Boolean, String), elem: String) = {
+        (acc._1 && _validatePublicKey(elem, acc._2), acc._2)
+    }
+
+    let result = FOLD<10>(publicKeys_, (true, err_), foldFunc)
+    result._1
+}
+
+# ---------- Data structures functions ----------
+
+func _loadInit() = {
+    match getBoolean(KEY_INIT) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _saveInit(isInit_: Boolean) = {
+    [BooleanEntry(KEY_INIT, isInit_)]
+}
+
+func _loadMultisig() = {
+    match getString(KEY_MULTISIG) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveMultisig(multisig_: Address) = {
+    [StringEntry(KEY_MULTISIG, multisig_.toString())]
+}
+
+func _loadProxySecDepo(account_: Address) = {
+    match getInteger(makeString([KEY_PROXY_SEC_DEPO, account_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveProxySecDepo(account_: Address, val_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_PROXY_SEC_DEPO, account_.toString()], SEPARATOR),
+        val_
+    )]
+}
+
+func _loadProxySecDepoPerEvent() = {
+    match getInteger(KEY_PROXY_SEC_DEPO_PER_EVENT) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveProxySecDepoPerEvent(val_: Int) = {
+    [IntegerEntry(KEY_PROXY_SEC_DEPO_PER_EVENT, val_)]
+}
+
+func _loadWavesEventSize() = {
+    match getInteger(KEY_WAVES_EVENT_SIZE) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventSize(val_: Int) = {
+    [IntegerEntry(KEY_WAVES_EVENT_SIZE, val_)]
+}
+
+func _loadWavesEvent(index_: Int) = {
+    match getString(makeString([KEY_WAVES_EVENT, index_.toString()], SEPARATOR)) {
+        case a:String =>
+            let struct = a.split(SEPARATOR)
+            (
+                struct[0].parseIntValue(),          # callerChainId_
+                struct[1].parseIntValue(),          # executionChainId_
+                struct[2].parseIntValue(),          # nonce_
+                struct[3],                          # caller_
+                struct[4],                          # executionContract_
+                struct[5],                          # functionName_
+                struct[6].split(ARGS_SEPARATOR),    # args_
+                struct[7],                          # txHash_
+                struct[8].parseIntValue(),          # blockNumber_
+                struct[9],                          # eventHash_
+                struct[10].parseIntValue(),         # confirmations_
+                struct[11].parseIntValue(),         # total_
+                struct[12].parseIntValue(),         # proxy_sec_depo
+                struct[13].addressFromStringValue() # proxy_address
+            )
+        case _ => (0, 0, 0, "", "", "", [], "", 0, "", 0, 0, 0, Address(base58''))
+    }
+}
+
+func _saveWavesEvent(index_: Int, event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address)) = {
+    [StringEntry(
+        makeString([KEY_WAVES_EVENT, index_.toString()], SEPARATOR),
+        makeString([
+            event_._1.toString(),                   # callerChainId_
+            event_._2.toString(),                   # executionChainId_
+            event_._3.toString(),                   # nonce_
+            event_._4,                              # caller_
+            event_._5,                              # executionContract_
+            event_._6,                              # functionName_
+            makeString(event_._7, ARGS_SEPARATOR),  # args_
+            event_._8,                              # txHash_
+            event_._9.toString(),                   # blockNumber_
+            event_._10,                             # eventHash_
+            event_._11.toString(),                  # confirmations_
+            event_._12.toString(),                  # total_
+            event_._13.toString(),                  # proxy_sec_depo
+            event_._14.toString()                   # proxy_address
+        ], SEPARATOR)
+    )]
+}
+
+func _loadWavesEventStatus(eventHash_: String) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_STATUS, eventHash_], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventStatus(eventHash_: String, status_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_WAVES_EVENT_STATUS, eventHash_], SEPARATOR),
+        status_
+    )]
+}
+
+func _loadPublishedWavesEventByWitness(publicKey_: String, eventId_: Int) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _savePublishedWavesEventByWitness(publicKey_: String, eventId_: Int, val_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_WAVES_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR),
+        val_
+    )]
+}
+
+func _loadCurrentEpoch(callerChainId_: Int) = {
+    match getInteger(makeString([KEY_CURRENT_EPOCH, callerChainId_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveCurrentEpoch(callerChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_CURRENT_EPOCH, callerChainId_.toString()], SEPARATOR), val_)]
+}
+
+func _loadWavesEventCallerIdxSize(callerChainId_: Int) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_CALLER, callerChainId_.toString(), KEY_SIZE], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventCallerIdxSize(callerChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_WAVES_EVENT_CALLER, callerChainId_.toString(), KEY_SIZE], SEPARATOR), val_)] 
+}
+
+func _loadWavesEventCallerIdx(callerChainId_: Int, idx_: Int) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_CALLER, callerChainId_.toString(), idx_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventCallerIdx(callerChainId_: Int, idx_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_WAVES_EVENT_CALLER, callerChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
+}
+
+func _loadWavesEventExecutorIdxSize(executionChainId_: Int) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventExecutorIdxSize(executionChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR), val_)] 
+}
+
+func _loadWavesEventExecutorIdx(executionChainId_: Int, idx_: Int) = {
+    match getInteger(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveWavesEventExecutorIdx(executionChainId_: Int, idx_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
+}
+
+func _loadWitnesses(callerChainId_: Int, epoch_: Int) = {
+    match getString(
+        makeString([KEY_WITNESSES_PER_EPOCH, callerChainId_.toString(), epoch_.toString()], SEPARATOR)
+    ) {
+        case a:String => split(a, SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveWitnesses(callerChainId_: Int, epoch_: Int, witnesses_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_WITNESSES_PER_EPOCH, callerChainId_.toString(), epoch_.toString()], SEPARATOR), 
+        makeString(witnesses_, SEPARATOR)
+    )]
+}
+
+func _loadRewardTokenAddress() = {
+    match getString(KEY_REWARD_TOKEN_ADDRESS) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveRewardTokenAddress(val_: Address) = {
+    [StringEntry(KEY_REWARD_TOKEN_ADDRESS, val_.toString())]
+}
+
+func _loadRewardAmount() = {
+    match getInteger(KEY_REWARD_AMOUNT) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveRewardAmount(val_: Int) = {
+    [IntegerEntry(KEY_REWARD_AMOUNT, val_)]
+}
+
+# ---------- Ownable functions ----------
+
+func _onlyThisContract(caller_: Address) = {
+    if caller_ != this then
+        throw("_onlyThisContract: revert")
+    else true
+}
+
+func _whenMultisigSet() = {
+    if _loadMultisig() == Address(base58'') then
+        throw("_whenMultisigSet: revert")
+    else true
+}
+
+# ---------- Initializable functions ----------
+
+func _whenNotInitialized() = {
+    if _loadInit() then
+        throw("_whenNotInitialized: revert")
+    else true
+}
+
+func _whenInitialized() = {
+    if !_loadInit() then
+        throw("_whenInitialized: revert")
+    else true
+}
+
+# ---------- Witness modifiers ----------
+
+func _isActiveWitness(publicKey_: String, publicKeys_: List[String], err_: String) = {
+    if !publicKeys_.containsElement(publicKey_) then
+       throw(err_)
+    else true
+}
+
+func _notConfirmedWavesEvent(eventHash_: String, err_: String) = {
+    if _loadWavesEventStatus(eventHash_) > EVENT_STATUS_PROCESSING then
+        throw(err_)
+    else true
+}
+
+func _wavesEventNotExist(eventHash_: String, err_: String) = {
+    if _loadWavesEventStatus(eventHash_) != 0 then
+        throw(err_)
+    else true
+}
+
+func _notPublishedWavesEventByWitness(publicKey_: String, eventId_: Int, err_: String) = { 
+    if _loadPublishedWavesEventByWitness(publicKey_, eventId_) != 0 then
+        throw(err_)
+    else true
+}
+
+func _isQuorumReached(confirmations_: Int, total_: Int, witnessSize_: Int) = {
+    if confirmations_ > witnessSize_ / 2 ||
+        total_ - confirmations_ > witnessSize_ / 2
+    then true
+    else false
+}
+
+func _getEventStatus(confirmations_: Int, total_: Int, witnessSize_: Int) = {
+    if confirmations_ > witnessSize_ / 2 then
+        EVENT_STATUS_CONFIRMED
+    else if total_ - confirmations_ > witnessSize_ / 2 then
+        EVENT_STATUS_REJECTED
+    else EVENT_STATUS_PROCESSING
+}
+
+# ---------- Hashing functions ----------
+
+func _calcEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address)) = {
+    let eventBytes =
+        event_._1.toBytes() +
+        event_._2.toBytes() +
+        event_._3.toBytes() +
+        event_._4.toBytes() +
+        event_._5.toBytes() +
+        event_._6.toBytes() +
+        makeString(event_._7, ARGS_SEPARATOR).toBytes() +
+        event_._8.toBytes() + 
+        event_._9.toBytes()
+
+    keccak256_16Kb(eventBytes).toBase58String()
+}
+
+# ---------- Utils functions ----------
+
+func _setEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), hash_: String) = {
+    (
+        event_._1,
+        event_._2,
+        event_._3,
+        event_._4,
+        event_._5,
+        event_._6,
+        event_._7,
+        event_._8,
+        event_._9,
+        hash_,
+        event_._11,
+        event_._12,
+        event_._13,
+        event_._14
+    )
+}
+
+func _setEventConfirmations(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), confirmations_: Int, total_: Int) = {
+    (
+        event_._1,
+        event_._2,
+        event_._3,
+        event_._4,
+        event_._5,
+        event_._6,
+        event_._7,
+        event_._8,
+        event_._9,
+        event_._10,
+        confirmations_,
+        total_,
+        event_._13,
+        event_._14
+    )
+}
+
+func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
+    func foldfunc(acc_: List[String], elem_: String) = {
+        acc_ :+ addressFromPublicKey(elem_.fromBase58String()).toString()
+    }
+    FOLD<51>(publicKeys_, [], foldfunc)
+}
+
+# ---------- Public callable functions ----------
+
+@Callable(i)
+func init(proxySecDepoPerEvent_: Int, rewardTokenAddress_: String, rewardAmount_: Int) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenNotInitialized() &&
+        _whenMultisigSet() &&
+        _validateInt(proxySecDepoPerEvent_, 0, MAX_INT, "init: invalid proxySecDepoPerEvent") &&
+        _validateAddress(rewardTokenAddress_, "init: invalid rewardTokenAddress") &&
+        _validateInt(rewardAmount_, 0, MAX_INT, "init: invalid rewardAmount")
+
+    (
+        _saveInit(true) ++
+        _saveProxySecDepoPerEvent(proxySecDepoPerEvent_) ++
+        _saveRewardTokenAddress(addressFromStringValue(rewardTokenAddress_)) ++
+        _saveRewardAmount(rewardAmount_),
+        unit
+    )
+}
+
+@Callable(i)
+func setActiveWitnesses(callerChainId_: Int, witnesses_: List[String]) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validatePublicKeys(witnesses_, "setActiveWitnesses: invalid witnesses")
+
+    let epoch = _loadCurrentEpoch(callerChainId_)
+
+    (
+        _saveCurrentEpoch(callerChainId_, epoch + 1) ++
+        _saveWitnesses(callerChainId_, epoch + 1, witnesses_),
+        unit
+    )
+}
+
+@Callable(i)
+func submitWavesCallEvent(
+    callerChainId_: Int,
+    executionChainId_: Int,
+    nonce_: Int,
+    caller_: String,
+    executionContract_: String,
+    functionName_: String,
+    args_: List[String],
+    txHash_: String,
+    blockNumber_: Int
+) = {
+    strict err =
+        _validateInt(callerChainId_, 0, MAX_INT, "submitWavesCallEvent: invalid callerChainId") &&
+        _validateInt(executionChainId_, 0, MAX_INT, "submitWavesCallEvent: invalid executionChainId") &&
+        _validateInt(nonce_, 0, MAX_INT, "submitWavesCallEvent: invalid nonce") &&
+        _validateString(caller_, "submitWavesCallEvent: invalid caller") &&
+        _validateString(executionContract_, "submitWavesCallEvent: invalid executionContract") &&
+        _validateString(functionName_, "submitWavesCallEvent: invalid functionName") &&
+        _validateString(txHash_, "submitWavesCallEvent: invalid txHash") &&
+        _validateInt(blockNumber_, 0, MAX_INT, "submitWavesCallEvent: invalid blockNumber")
+
+    let proxySecDepo = _loadProxySecDepo(i.caller)
+    let proxySecDepoPerEvent = _loadProxySecDepoPerEvent()
+    let proxySecDepoUpdated = proxySecDepo - proxySecDepoPerEvent
+
+    let event = (
+        callerChainId_,
+        executionChainId_,
+        nonce_,
+        caller_,
+        executionContract_,
+        functionName_,
+        args_,
+        txHash_,
+        blockNumber_,
+        "",
+        0,
+        0,
+        proxySecDepoPerEvent,
+        i.caller
+    )
+
+    let eventSize = _loadWavesEventSize()
+    let eventHash = _calcEventHash(event)
+    let eventUpdated = _setEventHash(event, eventHash)
+
+    strict err1 =
+        _wavesEventNotExist(eventHash, "submitWavesCallEvent: already exists") &&
+        _validateInt(proxySecDepoUpdated, 0, MAX_INT, "submitWavesCallEvent: no security deposit")
+
+    let callerIdxSize = _loadWavesEventCallerIdxSize(callerChainId_)
+
+    (
+        _saveProxySecDepo(i.caller, proxySecDepoUpdated) ++
+        _saveWavesEvent(eventSize, eventUpdated) ++ 
+        _saveWavesEventStatus(eventHash, EVENT_STATUS_PROCESSING) ++
+        _saveWavesEventSize(eventSize + 1) ++
+        _saveWavesEventCallerIdx(callerChainId_, callerIdxSize, eventSize) ++
+        _saveWavesEventCallerIdxSize(callerChainId_, callerIdxSize + 1)
+        , unit
+    )
+}
+
+@Callable(i)
+func publishWavesEventStatus(eventIdx_: Int, status_: Int) = {
+    let eventSize = _loadWavesEventSize()
+    let callerPublicKey = i.callerPublicKey.toBase58String()
+
+    strict err =
+        _validateEventIdx(eventIdx_, eventSize, "publishWavesEventStatus: invalid event idx") &&
+        _validateEventStatus(status_, "publishWavesEventStatus: invalid status")
+
+    let event = _loadWavesEvent(eventIdx_)
+    let callerChainId = event._1
+    let executionChainId = event._2
+    let eventHash = event._10
+    let eventConfirmations = event._11
+    let eventTotal = event._12
+    let proxySecDepo = event._13
+    let proxy = event._14
+
+    let epoch = _loadCurrentEpoch(callerChainId)
+    let activeWitnesses = _loadWitnesses(callerChainId, epoch)
+
+    strict err1 =
+        _isActiveWitness(i.callerPublicKey.toBase58String(), activeWitnesses, "publishWavesEventStatus: invalid caller") &&
+        _notConfirmedWavesEvent(eventHash, "publishWavesEventStatus: event already confirmed") &&
+        _notPublishedWavesEventByWitness(callerPublicKey, eventIdx_, "publishWavesEventStatus: already published")
+
+    let eventUpdated = 
+        if status_ == EVENT_STATUS_CONFIRMED then
+            _setEventConfirmations(event, eventConfirmations + 1, eventTotal + 1)
+        else if status_ == EVENT_STATUS_REJECTED then
+            _setEventConfirmations(event, eventConfirmations, eventTotal + 1)
+        else throw("publishWavesEventStatus: incorrect status")
+
+    let executorIdxSize = _loadWavesEventExecutorIdxSize(executionChainId)
+    let finalization =
+        if _isQuorumReached(eventUpdated._11, eventUpdated._12, activeWitnesses.size()) then
+            let status = _getEventStatus(eventUpdated._11, eventUpdated._12, activeWitnesses.size())
+
+            let proxySecDepoUpdated =
+                if status == EVENT_STATUS_CONFIRMED then
+                    _saveProxySecDepo(proxy, _loadProxySecDepo(proxy) + proxySecDepo)
+                else if status == EVENT_STATUS_REJECTED then
+                    [ScriptTransfer(_loadMultisig(), proxySecDepo, unit)]
+                else []
+
+            let rewardAddresses = proxy.toString() :: _publicKeysToAddrsStr(activeWitnesses)
+            strict witnessesRewards = invoke(_loadRewardTokenAddress(), FUNC_MINT_MANY, [_loadRewardAmount(), rewardAddresses], [])
+
+            proxySecDepoUpdated ++
+            _saveWavesEventStatus(eventHash, status) ++
+            _saveWavesEventExecutorIdx(executionChainId, executorIdxSize, eventIdx_) ++
+            _saveWavesEventExecutorIdxSize(executionChainId, executorIdxSize + 1)
+        else []
+
+    (
+        _saveWavesEvent(eventIdx_, eventUpdated) ++
+        _savePublishedWavesEventByWitness(callerPublicKey, eventIdx_, status_) ++
+        finalization, unit
+    )
+}
+
+@Callable(i)
+func addProxySecurityDeposit(recipient_: String) = {
+    let recipient = if recipient_ == "" then i.caller.toString() else recipient_
+
+    strict err =
+        _validateAddress(recipient, "addProxySecurityDeposit: invalid recipient") &&
+        _validatePaymentsSize(i.payments, 1, "addProxySecurityDeposit: no payment") &&
+        _validatePaymentAsset(i.payments[0], unit, "addProxySecurityDeposit: invalid asset")
+
+    let recipientAddr = addressFromStringValue(recipient)
+    let balance = _loadProxySecDepo(recipientAddr)
+    let updatedBalance = balance + i.payments[0].amount
+
+    (_saveProxySecDepo(recipientAddr, updatedBalance), unit)
+}
+
+@Callable(i)
+func subProxySecurityDeposit(amount_: Int) = {
+    let balance = _loadProxySecDepo(i.caller)
+
+    if balance < amount_ then
+        throw("subProxySecurityDeposit: insufficient balance")
+    else
+    (
+        _saveProxySecDepo(i.caller, balance - amount_) ++ 
+        [ScriptTransfer(i.caller, amount_, unit)], unit
+    )
+}
+
+@Callable(i)
+func setMultisig(multisig_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _validateAddress(multisig_, "setMultisig: invalid multisig address")
+
+    (_saveMultisig(addressFromStringValue(multisig_)), unit)
+}
+
+@Verifier(tx)
+func verify() = {
+    match getString(KEY_MULTISIG) {
+        case multisig: String => 
+            multisig
+                .addressFromStringValue()
+                .getBoolean(makeString([KEY_STATUS, this.toString(), tx.id.toBase58String()], SEPARATOR))
+                .valueOrElse(false)
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}

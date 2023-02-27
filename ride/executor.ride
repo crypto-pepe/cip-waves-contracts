@@ -1,0 +1,313 @@
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# STDLIB_VERSION 6 #-}
+
+let SEPARATOR = "__"
+let KEY_INIT = "INIT"
+let KEY_MULTISIG = "MULTISIG"
+let KEY_STATUS = "STATUS"
+let KEY_PAUSED = "PAUSED"
+let KEY_PAUSER = "PAUSER"
+let KEY_CHAIN_ID = "CHAIN_ID"
+let KEY_SIGNER_PUBLIC_KEY = "SIGNER_PUBLIC_KEY"
+let KEY_DATA_HASH = "DATA_HASH"
+
+let MAX_INT = 9223372036854775807
+
+# ---------- Validation functions ----------
+
+func _validateAddress(address_: String, err_: String) = {
+    match addressFromString(address_) {
+        case a:Address => true
+        case _ => throw(err_)
+    }
+}
+
+func _validatePublicKey(publicKey_: String, err_: String) = {
+    if fromBase58String(publicKey_).size() != 32 then
+        throw(err_)
+    else true
+}
+
+func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: String) = {
+    if val_ < lowerBoundary_ || val_ > upperBoundary_ then
+        throw(err_)
+    else true
+}
+
+# ---------- Data structures functions ----------
+
+func _loadInit() = {
+    match getBoolean(KEY_INIT) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _saveInit(isInit_: Boolean) = {
+    [BooleanEntry(KEY_INIT, isInit_)]
+}
+
+func _loadPause() = {
+    match getBoolean(KEY_PAUSED) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _savePause(isPaused_: Boolean) = {
+    [BooleanEntry(KEY_PAUSED, isPaused_)]
+}
+
+func _loadPauser() = {
+    match getString(KEY_PAUSER) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _savePauser(pauser_: Address) = {
+    [StringEntry(KEY_PAUSER, pauser_.toString())]
+}
+
+func _loadMultisig() = {
+    match getString(KEY_MULTISIG) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveMultisig(multisig_: Address) = {
+    [StringEntry(KEY_MULTISIG, multisig_.toString())]
+}
+
+func _loadChainId() = {
+    match getInteger(KEY_CHAIN_ID) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveChainId(chainId_: Int) = {
+    [IntegerEntry(KEY_CHAIN_ID, chainId_)]
+}
+
+func _loadSignerPublicKey() = {
+    match getString(KEY_SIGNER_PUBLIC_KEY) {
+        case a:String => fromBase58String(a)
+        case _ => base58''
+    }
+}
+
+func _saveSignerPublicKey(signerPublicKey_: ByteVector) = {
+    [StringEntry(KEY_SIGNER_PUBLIC_KEY, toBase58String(signerPublicKey_))]
+}
+
+func _loadDataHash(dataHash_: ByteVector) = {
+    match getInteger(makeString([KEY_DATA_HASH, toBase58String(dataHash_)], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveDataHash(dataHash_: ByteVector, height_: Int) = {
+    [IntegerEntry(makeString([KEY_DATA_HASH, toBase58String(dataHash_)], SEPARATOR), height_)]
+}
+
+# ---------- Ownable functions ----------
+
+func _onlyThisContract(caller_: Address) = {
+    if caller_ != this then
+        throw("_onlyThisContract: revert")
+    else true
+}
+
+func _whenMultisigSet() = {
+    if _loadMultisig() == Address(base58'') then
+        throw("_whenMultisigSet: revert")
+    else true
+}
+
+# ---------- Initializable functions ----------
+
+func _whenNotInitialized() = {
+    if _loadInit() then
+        throw("_whenNotInitialized: revert")
+    else true
+}
+
+func _whenInitialized() = {
+    if !_loadInit() then
+        throw("_whenInitialized: revert")
+    else true
+}
+
+# ---------- Pausable functions ----------
+
+func _whenNotPaused() = {
+    if _loadPause() then
+        throw("_whenNotPaused: revert")
+    else true
+}
+
+func _whenPaused() = {
+    if !_loadPause() then
+        throw("_whenPaused: revert")
+    else true
+}
+
+func _onlyPauser(caller_: Address) = {
+    if caller_ != _loadPauser() then
+        throw("_onlyPauser: revert")
+    else true
+}
+
+# ---------- Public callable functions ----------
+
+@Callable(i)
+func init(pauser_: String, chainId_: Int, signerPublicKey_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenNotInitialized() &&
+        _whenMultisigSet() &&
+        _validateAddress(pauser_, "init: invalid pauser") &&
+        _validateInt(chainId_, 0, MAX_INT, "init: invalid chain id") &&
+        _validatePublicKey(signerPublicKey_, "init: invalid signer public key")
+
+    (
+        _saveInit(true) ++
+        _savePauser(addressFromStringValue(pauser_)) ++
+        _saveChainId(chainId_) ++
+        _saveSignerPublicKey(fromBase58String(signerPublicKey_)),
+        unit
+    )
+}
+
+@Callable(i)
+func execute(
+    contract_: String,
+    functionName_: String,
+    functionArgs_: List[String],
+    callerChainId_: Int,
+    executionChainId_: Int,
+    nonce_: Int,
+    callerContract_: String,
+    txHash_: String,
+    signature_: String
+) = {
+    strict err =
+        _whenInitialized() &&
+        _whenNotPaused() &&
+        _validateAddress(contract_, "execute: invalid contract") &&
+        if _loadChainId() != executionChainId_ then
+            throw("execute: invalid execution chain id")
+        else true
+
+    func foldFunc(acc: ByteVector, elem: String) = {
+        acc + elem.toBytes()
+    }
+    let argsBytes = FOLD<22>(functionArgs_, base58'', foldFunc)
+
+    let data =
+        callerChainId_.toBytes() +
+        executionChainId_.toBytes() +
+        nonce_.toBytes() +
+        callerContract_.toBytes() +
+        txHash_.toBytes() +
+        contract_.fromBase58String() + 
+        functionName_.toBytes() +
+        argsBytes
+
+    let dataHash = keccak256_32Kb(data)
+
+    strict err1 = 
+        if !sigVerify(dataHash, fromBase58String(signature_), _loadSignerPublicKey()) then
+            throw("execute: invalid signature")
+        else if _loadDataHash(dataHash) > 0 then
+            throw("execute: duplicate data")
+        else unit
+
+    strict invocation = invoke(addressFromStringValue(contract_), functionName_, callerContract_ :: functionArgs_, [])
+
+    (_saveDataHash(dataHash, height), unit)
+}
+
+@Callable(i)
+func updateSigner(newSignerPublicKey_: String, oldSignature_: String, newSignature_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validatePublicKey(newSignerPublicKey_, "updateSigner: invalid signer public key")
+
+    let oldSignerPublicKey = _loadSignerPublicKey()
+    let oldData = # TODO: here we need more unique data (nonce maybe ???)
+        "<<<PUBLIC--KEY--MIGRATION--ALLOWED>>>".toBytes() +
+        oldSignerPublicKey +
+        newSignerPublicKey_.fromBase58String()
+
+    let newSignerPublicKey = fromBase58String(newSignerPublicKey_)
+    let newData = # TODO: here we need more unique data (nonce maybe ???)
+        "<<<PUBLIC--KEY--MIGRATION--CONFIRMED>>>".toBytes() +
+        oldSignerPublicKey +
+        newSignerPublicKey_.toBytes()
+
+    strict err1 = 
+        if !sigVerify_8Kb(oldData, fromBase58String(oldSignature_), oldSignerPublicKey) then
+            throw("updateSigner: invalid old signature")
+        else if !sigVerify_8Kb(newData, fromBase58String(newSignature_), newSignerPublicKey) then
+            throw("updateSigner: invalid new signature")
+        else unit
+
+    (_saveSignerPublicKey(newSignerPublicKey), unit)
+}
+
+@Callable(i)
+func pause() = {
+    strict err =
+        _onlyPauser(i.caller) &&
+        _whenInitialized() &&
+        _whenNotPaused()
+
+    (_savePause(true), unit)
+}
+
+@Callable(i)
+func unpause() = {
+    strict err =
+        _onlyPauser(i.caller) &&
+        _whenInitialized() &&
+        _whenPaused()
+
+    (_savePause(false), unit)
+}
+
+@Callable(i)
+func updatePauser(pauser_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validateAddress(pauser_, "init: invalid pauser")
+
+    (_savePauser(addressFromStringValue(pauser_)), unit)
+}
+
+@Callable(i)
+func setMultisig(multisig_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _validateAddress(multisig_, "setMultisig: invalid multisig address")
+
+    (_saveMultisig(addressFromStringValue(multisig_)), unit)
+}
+
+@Verifier(tx)
+func verify() = {
+    match getString(KEY_MULTISIG) {
+        case multisig: String => 
+            multisig
+                .addressFromStringValue()
+                .getBoolean(makeString([KEY_STATUS, this.toString(), tx.id.toBase58String()], SEPARATOR))
+                .valueOrElse(false)
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}

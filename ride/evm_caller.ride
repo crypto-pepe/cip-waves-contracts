@@ -1,0 +1,313 @@
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# STDLIB_VERSION 6 #-}
+
+let SEPARATOR = "__"
+let KEY_INIT = "INIT"
+let KEY_MULTISIG = "MULTISIG"
+let KEY_STATUS = "STATUS"
+let KEY_PAUSED = "PAUSED"
+let KEY_PAUSER = "PAUSER"
+let KEY_ALLOWANCE = "ALLOWANCE"
+let KEY_CALL_CHAIN_ID = "CALL_CHAIN_ID"
+let KEY_EVENT_SIZE = "EVENT_SIZE"
+let KEY_EVENT = "EVENT"
+let KEY_NONCE = "NONCE"
+
+let MAX_INT = 9223372036854775807
+
+# ---------- Validation functions ----------
+
+func _validateAddress(address_: String, err_: String) = {
+    match addressFromString(address_) {
+        case a:Address => true
+        case _ => throw(err_)
+    }
+}
+
+func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: String) = {
+    if val_ < lowerBoundary_ || val_ > upperBoundary_ then
+        throw(err_)
+    else true
+}
+
+# ---------- Data structures functions ----------
+
+func _loadInit() = {
+    match getBoolean(KEY_INIT) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _saveInit(isInit_: Boolean) = {
+    [BooleanEntry(KEY_INIT, isInit_)]
+}
+
+func _loadPause() = {
+    match getBoolean(KEY_PAUSED) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _savePause(isPaused_: Boolean) = {
+    [BooleanEntry(KEY_PAUSED, isPaused_)]
+}
+
+func _loadPauser() = {
+    match getString(KEY_PAUSER) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _savePauser(pauser_: Address) = {
+    [StringEntry(KEY_PAUSER, pauser_.toString())]
+}
+
+func _loadAllowance(caller_: Address) = {
+    match getBoolean(
+        makeString([KEY_ALLOWANCE, caller_.toString()], SEPARATOR)
+    ) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _saveAllowance(caller_: Address, val_: Boolean) = {
+    [BooleanEntry(makeString([KEY_ALLOWANCE, caller_.toString()], SEPARATOR), val_)]
+}
+
+func _loadMultisig() = {
+    match getString(KEY_MULTISIG) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveMultisig(multisig_: Address) = {
+    [StringEntry(KEY_MULTISIG, multisig_.toString())]
+}
+
+func _loadCallChainId() = {
+    match getInteger(KEY_CALL_CHAIN_ID) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveCallChainId(callChainId_: Int) = {
+    [IntegerEntry(KEY_CALL_CHAIN_ID, callChainId_)]
+}
+
+func _loadEventSize() = {
+    match getInteger(KEY_EVENT_SIZE) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEventSize(index_: Int) = {
+    [IntegerEntry(KEY_EVENT_SIZE, index_)]
+}
+
+func _saveEvent(index_: Int, event_: (Int, Int, Address, String, String, Int, String, Int)) = {
+    [StringEntry(
+        makeString([KEY_EVENT, index_.toString()], SEPARATOR),
+        makeString([
+            event_._1.toString(),   # callChainId
+            event_._2.toString(),   # executionChainId TODO add nonce
+            event_._3.toString(),   # caller
+            event_._4,              # executionContract
+            event_._5,              # calldata
+            event_._6.toString(),   # nonce
+            event_._7,              # txHash
+            event_._8.toString()    # blockNumber
+        ], SEPARATOR)
+    )]
+}
+
+func _loadNonce() = {
+    match getInteger(KEY_NONCE) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveNonce(val_: Int) = {
+    [IntegerEntry(KEY_NONCE, val_)]
+}
+
+# ---------- Ownable functions ----------
+
+func _onlyThisContract(caller_: Address) = {
+    if caller_ != this then
+        throw("_onlyThisContract: revert")
+    else true
+}
+
+func _whenMultisigSet() = {
+    if _loadMultisig() == Address(base58'') then
+        throw("_whenMultisigSet: revert")
+    else true
+}
+
+# ---------- Initializable functions ----------
+
+func _whenNotInitialized() = {
+    if _loadInit() then
+        throw("_whenNotInitialized: revert")
+    else true
+}
+
+func _whenInitialized() = {
+    if !_loadInit() then
+        throw("_whenInitialized: revert")
+    else true
+}
+
+# ---------- Pausable functions ----------
+
+func _whenNotPaused() = {
+    if _loadPause() then
+        throw("_whenNotPaused: revert")
+    else true
+}
+
+func _whenPaused() = {
+    if !_loadPause() then
+        throw("_whenPaused: revert")
+    else true
+}
+
+func _onlyPauser(caller_: Address) = {
+    if caller_ != _loadPauser() then
+        throw("_onlyPauser: revert")
+    else true
+}
+
+# ---------- Allowance functions ----------
+
+func _whenAllowed(caller_: Address) = {
+    if !_loadAllowance(caller_) then
+        throw("_whenAllowed: revert")
+    else true  
+}
+
+# ---------- Public callable functions ----------
+
+@Callable(i)
+func init(pauser_: String, callChainId_: Int) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenNotInitialized() &&
+        _whenMultisigSet() &&
+        _validateAddress(pauser_, "init: invalid pauser") &&
+        _validateInt(callChainId_, 0, MAX_INT, "init: invalid call chain id")
+
+    (
+        _saveInit(true) ++
+        _savePauser(addressFromStringValue(pauser_)) ++
+        _saveCallChainId(callChainId_),
+        unit
+    )
+}
+
+@Callable(i)
+func call(executionChainId_: Int, executionContract_: String, calldata_: String) = {
+    strict err =
+        _whenInitialized() &&
+        _whenAllowed(i.caller) &&
+        _whenNotPaused()
+
+    let nonce = _loadNonce()
+    let eventSize = _loadEventSize()
+    let event = (
+        _loadCallChainId(),                 # callChainId
+        executionChainId_,                  # executionChainId
+        i.caller,                           # caller
+        executionContract_,                 # executionContract
+        calldata_,                          # calldata
+        nonce,                              # nonce
+        i.transactionId.toBase58String(),   # txHash
+        height                              # blockNumber
+    )
+
+    (
+        _saveEventSize(eventSize + 1) ++
+        _saveEvent(eventSize, event) ++
+        _saveNonce(nonce + 1), unit
+    )
+}
+
+@Callable(i)
+func allow(caller_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validateAddress(caller_, "allow: invalid caller arg")
+
+    (_saveAllowance(addressFromStringValue(caller_), true), unit)
+}
+
+@Callable(i)
+func disallow(caller_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validateAddress(caller_, "disallow: invalid caller arg")
+
+    (_saveAllowance(addressFromStringValue(caller_), false), unit)
+}
+
+@Callable(i)
+func pause() = {
+    strict err =
+        _onlyPauser(i.caller) &&
+        _whenInitialized() &&
+        _whenNotPaused()
+
+    (_savePause(true), unit)
+}
+
+@Callable(i)
+func unpause() = {
+    strict err =
+        _onlyPauser(i.caller) &&
+        _whenInitialized() &&
+        _whenPaused()
+
+    (_savePause(false), unit)
+}
+
+@Callable(i)
+func updatePauser(pauser_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validateAddress(pauser_, "init: invalid pauser")
+
+    (_savePauser(addressFromStringValue(pauser_)), unit)
+}
+
+@Callable(i)
+func setMultisig(multisig_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _validateAddress(multisig_, "setMultisig: invalid multisig address")
+
+    (_saveMultisig(addressFromStringValue(multisig_)), unit)
+}
+
+@Verifier(tx)
+func verify() = {
+    match getString(KEY_MULTISIG) {
+        case multisig: String => 
+            multisig
+                .addressFromStringValue()
+                .getBoolean(makeString([KEY_STATUS, this.toString(), tx.id.toBase58String()], SEPARATOR))
+                .valueOrElse(false)
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}

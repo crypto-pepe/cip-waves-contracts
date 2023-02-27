@@ -1,0 +1,728 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEPARATOR = "__"
+let KEY_INIT = "INIT"
+let KEY_MULTISIG = "MULTISIG"
+let KEY_STATUS = "STATUS"
+let KEY_MIN_SEC_DEPO = "MIN_SEC_DEPO"
+let KEY_PUNISHMENT = "PUNISHMENT"
+let KEY_RESET_BLOCK_DELTA = "RESET_BLOCK_DELTA"
+let KEY_SEC_DEPO = "SEC_DEPO"
+let KEY_REWARD_TOKEN_ADDRESS = "REWARD_TOKEN_ADDRESS"
+let KEY_REWARD_AMOUNT = "REWARD_AMOUNT"
+let KEY_CURRENT_EPOCH = "CURRENT_EPOCH"
+let KEY_SIGNERS_PER_EPOCH = "SIGNERS_PER_EPOCH"
+let KEY_EVENT_STATUS = "EVENT_STATUS"
+let KEY_LOCKS = "LOCKS"
+let KEY_T = "T"
+let KEY_R = "R"
+let KEY_S = "S"
+let KEY_R_SIGNERS = "R_SIGNERS"
+let KEY_EVENT_START_BLOCK = "EVENT_START_BLOCK"
+let KEY_R_SIGMA = "R_SIGMA"
+let KEY_S_SIGMA = "S_SIGMA"
+let KEY_S_SIGNERS = "S_SIGNERS"
+let KEY_SIGNED_EVENT_EXECUTOR = "SIGNED_EVENT_EXECUTOR"
+let KEY_SIZE = "SIZE"
+
+let FUNC_MINT_MANY = "mintMany"
+
+let EVENT_STATUS_INIT = 1
+let EVENT_STATUS_SIGN = 2
+let EVENT_STATUS_DONE = 3
+
+let MAX_INT = 9223372036854775807
+
+# ---------- Validation functions ----------
+
+func _validateAddress(address_: String, err_: String) = {
+    match addressFromString(address_) {
+        case a:Address => true
+        case _ => throw(err_)
+    }
+}
+
+func _validateAsset(assetId_: String, err_: String) = {
+    match assetInfo(fromBase58String(assetId_)) {
+        case a:Asset => true
+        case _ => throw(err_)
+    }
+}
+
+func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: String) = {
+    if val_ < lowerBoundary_ || val_ > upperBoundary_ then
+        throw(err_)
+    else true
+}
+
+func _validateString(val_: String, err_: String) = {
+    if val_.size() <= 0 then
+        throw(err_)
+    else true
+}
+
+func _validatePaymentsSize(payments_: List[AttachedPayment], target_: Int, err_: String) = {
+    if payments_.size() != target_ then
+        throw(err_)
+    else true
+}
+
+func _validatePaymentAsset(payment_: AttachedPayment, asset_: ByteVector|Unit, err_: String) = {
+    if payment_.assetId != asset_ then
+        throw(err_)
+    else true
+}
+
+func _validatePublicKey(publicKey_: String, err_: String) = {
+    if publicKey_.fromBase58String().size() != 32 then
+        throw(err_)
+    else true
+}
+
+func _validatePublicKeys(publicKeys_: List[String], err_: String) = {
+    func foldFunc(acc: (Boolean, String), elem: String) = {
+        (acc._1 && _validatePublicKey(elem, acc._2), acc._2)
+    }
+
+    let result = FOLD<10>(publicKeys_, (true, err_), foldFunc)
+    result._1
+}
+
+# ---------- Data structures functions ----------
+
+func _loadInit() = {
+    match getBoolean(KEY_INIT) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func _saveInit(isInit_: Boolean) = {
+    [BooleanEntry(KEY_INIT, isInit_)]
+}
+
+func _loadMultisig() = {
+    match getString(KEY_MULTISIG) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveMultisig(multisig_: Address) = {
+    [StringEntry(KEY_MULTISIG, multisig_.toString())]
+}
+
+func _loadMinSecDepo() = {
+    match getInteger(KEY_MIN_SEC_DEPO) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveMinSecDepo(val_: Int) = {
+    [IntegerEntry(KEY_MIN_SEC_DEPO, val_)]
+}
+
+func _loadSecDepo(account_: Address) = {
+    match getInteger(makeString([KEY_SEC_DEPO, account_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveSecDepo(account_: Address, val_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_SEC_DEPO, account_.toString()], SEPARATOR),
+        val_
+    )]
+}
+
+func _loadPunishment() = {
+    match getInteger(KEY_PUNISHMENT) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _savePunishment(val_: Int) = {
+    [IntegerEntry(KEY_PUNISHMENT, val_)]
+}
+
+func _loadResetBlockDelta() = {
+    match getInteger(KEY_RESET_BLOCK_DELTA) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveResetBlockDelta(val_ :Int) = {
+    [IntegerEntry(KEY_RESET_BLOCK_DELTA, val_)]
+}
+
+func _loadRewardTokenAddress() = {
+    match getString(KEY_REWARD_TOKEN_ADDRESS) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveRewardTokenAddress(val_: Address) = {
+    [StringEntry(KEY_REWARD_TOKEN_ADDRESS, val_.toString())]
+}
+
+func _loadRewardAmount() = {
+    match getInteger(KEY_REWARD_AMOUNT) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveRewardAmount(val_: Int) = {
+    [IntegerEntry(KEY_REWARD_AMOUNT, val_)]
+}
+
+func _loadCurrentEpoch(execChainId_: Int) = {
+    match getInteger(makeString([KEY_CURRENT_EPOCH, execChainId_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveCurrentEpoch(execChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_CURRENT_EPOCH, execChainId_.toString()], SEPARATOR), val_)]
+}
+
+func _loadSigners(execChainId_: Int, epoch_: Int) = {
+    match getString(
+        makeString([KEY_SIGNERS_PER_EPOCH, execChainId_.toString(), epoch_.toString()], SEPARATOR)
+    ) {
+        case a:String => split(a, SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveSigners(execChainId_: Int, epoch_: Int, signers_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_SIGNERS_PER_EPOCH, execChainId_.toString(), epoch_.toString()], SEPARATOR), 
+        makeString(signers_, SEPARATOR)
+    )]
+}
+
+func _loadEventStatus(eventId_: Int) = {
+    match getInteger(
+        makeString([KEY_EVENT_STATUS, eventId_.toString()], SEPARATOR)
+    ) {
+        case a:Int => a
+        case _ => EVENT_STATUS_INIT
+    }
+}
+
+func _saveEventStatus(eventId_: Int, status_: Int) = {
+    [IntegerEntry(makeString([KEY_EVENT_STATUS, eventId_.toString()], SEPARATOR), status_)]
+}
+
+func _loadLock(publicKey_: String) = {
+    match getInteger(
+        makeString([KEY_LOCKS, publicKey_], SEPARATOR)
+    ) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveLock(publicKey_: String, val_: Int) = {
+    [IntegerEntry( makeString([KEY_LOCKS, publicKey_], SEPARATOR), val_)]
+}
+
+func _loadT(execChainId_: Int, epoch_: Int) = {
+    match getInteger(makeString([KEY_T, execChainId_.toString(), epoch_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveT(execChainId_: Int, epoch_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_T, execChainId_.toString(), epoch_.toString()], SEPARATOR), val_)]
+}
+
+func _loadRsByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_R, eventId_.toString()], SEPARATOR)) {
+        case a:String => a.split(SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveRsByEvent(eventId_: Int, rs_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_R, eventId_.toString()], SEPARATOR),
+        makeString(rs_, SEPARATOR)
+    )]
+}
+
+func _loadSsByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_S, eventId_.toString()], SEPARATOR)) {
+        case a:String => a.split(SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveSsByEvent(eventId_: Int, ss_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_S, eventId_.toString()], SEPARATOR),
+        makeString(ss_, SEPARATOR)
+    )]
+}
+
+func _loadRSigmaByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_R_SIGMA, eventId_.toString()], SEPARATOR)) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+func _saveRSigmaByEvent(eventId_: Int, rSigma_: String) = {
+    [StringEntry(makeString([KEY_R_SIGMA, eventId_.toString()], SEPARATOR), rSigma_)]
+}
+
+func _loadSSigmaByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_S_SIGMA, eventId_.toString()], SEPARATOR)) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+func _saveSSigmaByEvent(eventId_: Int, sSigma_: String) = {
+    [StringEntry(makeString([KEY_S_SIGMA, eventId_.toString()], SEPARATOR), sSigma_)]
+}
+
+func _loadRByEventAndSigner(eventId_: Int, signer_: String) = {
+    match getString(
+        makeString([KEY_R, eventId_.toString(), signer_], SEPARATOR)
+    ) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+func _saveRByEventAndSigner(eventId_: Int, signer_: String, r_: String) = {
+    [StringEntry(makeString([KEY_R, eventId_.toString(), signer_], SEPARATOR), r_)]
+}
+
+func _loadSByEventAndSigner(eventId_: Int, signer_: String) = {
+    match getString(
+        makeString([KEY_S, eventId_.toString(), signer_], SEPARATOR)
+    ) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+func _saveSByEventAndSigner(eventId_: Int, signer_: String, s_: String) = {
+    [StringEntry(makeString([KEY_S, eventId_.toString(), signer_], SEPARATOR), s_)]
+}
+
+func _loadSignersWithRByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_R_SIGNERS, eventId_.toString()], SEPARATOR)) {
+        case a:String => a.split(SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveSignersWithRByEvent(eventId_: Int, rs_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_R_SIGNERS, eventId_.toString()], SEPARATOR),
+        makeString(rs_, SEPARATOR)
+    )]
+}
+
+func _loadSignersWithSByEvent(eventId_: Int) = {
+    match getString(makeString([KEY_S_SIGNERS, eventId_.toString()], SEPARATOR)) {
+        case a:String => a.split(SEPARATOR)
+        case _ => []
+    }
+}
+
+func _saveSignersWithSByEvent(eventId_: Int, ss_: List[String]) = {
+    [StringEntry(
+        makeString([KEY_S_SIGNERS, eventId_.toString()], SEPARATOR),
+        makeString(ss_, SEPARATOR)
+    )]
+}
+
+func _loadEventStartBlock(eventId_: Int) = {
+    match getInteger(makeString([KEY_EVENT_START_BLOCK, eventId_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEventStartBlock(eventId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVENT_START_BLOCK, eventId_.toString()], SEPARATOR), val_)]
+}
+
+func _loadSignedEventExecutorIdxSize(executionChainId_: Int) = {
+    match getInteger(makeString([KEY_SIGNED_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveSignedEventExecutorIdxSize(executionChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_SIGNED_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR), val_)] 
+}
+
+func _loadSignedEventExecutorIdx(executionChainId_: Int, idx_: Int) = {
+    match getInteger(makeString([KEY_SIGNED_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveSignedEventExecutorIdx(executionChainId_: Int, idx_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_SIGNED_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
+}
+
+# ---------- Ownable functions ----------
+
+func _onlyThisContract(caller_: Address) = {
+    if caller_ != this then
+        throw("_onlyThisContract: revert")
+    else true
+}
+
+func _whenMultisigSet() = {
+    if _loadMultisig() == Address(base58'') then
+        throw("_whenMultisigSet: revert")
+    else true
+}
+
+# ---------- Initializable functions ----------
+
+func _whenNotInitialized() = {
+    if _loadInit() then
+        throw("_whenNotInitialized: revert")
+    else true
+}
+
+func _whenInitialized() = {
+    if !_loadInit() then
+        throw("_whenInitialized: revert")
+    else true
+}
+
+# ---------- Signer modifiers ----------
+
+func _isActiveSigner(publicKey_: String, publicKeys_: List[String], err_: String) = {
+    if !publicKeys_.containsElement(publicKey_) then
+       throw(err_)
+    else true
+}
+
+func _checkSecDepo(signer_: String, err_: String) = {
+    if _loadSecDepo(signer_.fromBase58String().addressFromPublicKey()) < _loadMinSecDepo() then
+        throw(err_)
+    else true
+}
+
+func _checkEventStatusForSubmitR(eventId_: Int, err_: String) = {
+    if _loadEventStatus(eventId_) != EVENT_STATUS_INIT then
+        throw(err_)
+    else true
+}
+
+func _checkEventStatusForSubmitS(eventId_: Int, err_: String) = {
+    if _loadEventStatus(eventId_) != EVENT_STATUS_SIGN then
+        throw(err_)
+    else true
+}
+
+func _checkEventStatusForReset(eventId_: Int, err_: String) = {
+    if _loadEventStatus(eventId_) != EVENT_STATUS_SIGN ||
+        _loadEventStartBlock(eventId_) + _loadResetBlockDelta() <= height then
+        throw(err_)
+    else true
+}
+
+func _incrementLocks(signers_: List[String]) = {
+    func foldFunc(acc: List[IntegerEntry], elem: String) = {
+        acc ++ _saveLock(elem, _loadLock(elem) + 1)
+    }
+
+    FOLD<10>(signers_, [], foldFunc)
+}
+
+func _isZeroLock(publicKey_: String, err_: String) = {
+    if _loadLock(publicKey_) > 0 then
+        throw(err_)
+    else true
+}
+
+func _notSubmittedR(eventId_: Int, signer_: String, err_: String) = {
+    if _loadRByEventAndSigner(eventId_, signer_) != "" then
+        throw(err_)
+    else true
+}
+
+func _notSubmittedS(eventId_: Int, signer_: String, err_: String) = {
+    if _loadSByEventAndSigner(eventId_, signer_) != "" then
+        throw(err_)
+    else true
+}
+
+func _submittedR(eventId_: Int, signer_: String, err_: String) = {
+    let r = _loadRByEventAndSigner(eventId_, signer_)
+    if r == "" then
+        throw(err_)
+    else if !_loadRsByEvent(eventId_).containsElement(r) then
+        throw(err_)
+    else true
+}
+
+func _slashIncorrect(signersWithR_: List[String], signersWithS_: List[String]) = {
+    let punishment = _loadPunishment()
+
+    func foldFunc(acc: (List[IntegerEntry], List[String], Int), elem: String) = {
+        if signersWithS_.containsElement(elem) then
+            # save signer for compensation
+            (acc._1, acc._2 :+ elem, acc._3)
+        else
+            # do slashing of signer and increment compensation
+            let signerAddress = elem.fromBase58String().addressFromPublicKey()
+
+            (acc._1 ++ _saveSecDepo(signerAddress, _loadSecDepo(signerAddress) - punishment), acc._2, acc._3 + punishment)
+    }
+
+    FOLD<10>(signersWithR_, ([], [], 0), foldFunc)
+}
+
+func _compensateCorrect(signers_: List[String], compensation_: Int) = {
+    let perSigner = compensation_ / signers_.size()
+
+    func foldFunc(acc: List[ScriptTransfer], elem: String) = {
+        acc :+ ScriptTransfer(elem.fromBase58String().addressFromPublicKey(), perSigner, unit)
+    }
+    FOLD<10>(signers_, [], foldFunc)
+}
+
+# ---------- Convertion functions ----------
+
+func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
+    func foldfunc(acc_: List[String], elem_: String) = {
+        acc_ :+ elem_.fromBase58String().addressFromPublicKey().toString()
+    }
+
+    FOLD<51>(publicKeys_, [], foldfunc)
+}
+
+# ---------- Public callable functions ----------
+
+@Callable(i)
+func init(minSecDepo_: Int, punishment_: Int, resetBlockDelta_: Int, rewardTokenAddress_: String, rewardAmount_: Int) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenNotInitialized() &&
+        _whenMultisigSet() &&
+        _validateInt(minSecDepo_, punishment_, MAX_INT, "init: invalid minSecDepo") &&
+        _validateInt(punishment_, 0, MAX_INT, "init: invalid punishment") &&
+        _validateInt(resetBlockDelta_, 0, MAX_INT, "init: invalid resetBlockDelta") &&
+        _validateAddress(rewardTokenAddress_, "init: invalid rewardTokenAddress") &&
+        _validateInt(rewardAmount_, 0, MAX_INT, "init: invalid rewardAmount")
+
+    (
+        _saveInit(true) ++
+        _saveMinSecDepo(minSecDepo_) ++
+        _savePunishment(punishment_) ++
+        _saveResetBlockDelta(resetBlockDelta_) ++
+        _saveRewardTokenAddress(addressFromStringValue(rewardTokenAddress_)) ++
+        _saveRewardAmount(rewardAmount_),
+        unit
+    )
+}
+
+@Callable(i)
+func setActiveSigners(execChainId_: Int, signers_: List[String], t_: Int) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _whenInitialized() &&
+        _validatePublicKeys(signers_, "setActiveSigners: invalid signers") &&
+        _validateInt(t_, 2, signers_.size(), "setActiveSigners: invalid T")
+
+    let epoch = _loadCurrentEpoch(execChainId_)
+
+    (
+        _saveCurrentEpoch(execChainId_, epoch + 1) ++
+        _saveT(execChainId_, epoch + 1, t_) ++
+        _saveSigners(execChainId_, epoch + 1, signers_) ++
+        _incrementLocks(signers_),
+        unit
+    )
+}
+
+@Callable(i)
+func submitR(eventId_: Int, execChainId_: Int, r_: String) = {
+    # TODO: load event from witness contract or not? check execChainId_ ?
+    let callerPublicKey = toBase58String(i.callerPublicKey)
+    let epoch = _loadCurrentEpoch(execChainId_)
+    let t = _loadT(execChainId_, epoch)
+
+    strict err =
+        _whenInitialized() &&
+        _validateInt(eventId_, 0, MAX_INT, "submitR: invalid eventId") &&
+        _validateInt(execChainId_, 0, MAX_INT, "submitR: invalid execChainId") &&
+        _validateString(r_, "submitR: invalid r") &&
+        _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitR: not active") &&
+        _checkSecDepo(callerPublicKey, "submitR: not enough security deposit") &&
+        _checkEventStatusForSubmitR(eventId_, "submitR: invalid event status") &&
+        _notSubmittedR(eventId_, callerPublicKey, "submitR: already submitted")
+
+    let rArray = _loadRsByEvent(eventId_)
+    let signersArray = _loadSignersWithRByEvent(eventId_)
+    let eventStatusActions =
+        if rArray.size() + 1 == t then
+            _saveEventStatus(eventId_, EVENT_STATUS_SIGN) ++
+            _saveEventStartBlock(eventId_, height)
+        else []
+
+    (
+        _saveRsByEvent(eventId_, rArray :+ r_) ++
+        _saveRByEventAndSigner(eventId_, callerPublicKey, r_) ++
+        _saveSignersWithRByEvent(eventId_, signersArray :+ callerPublicKey) ++
+        eventStatusActions,
+        unit
+    )
+}
+
+@Callable(i)
+func submitS(eventId_: Int, execChainId_: Int, rSigma_: String, s_: String, sSigma_: String) = {
+    let callerPublicKey = toBase58String(i.callerPublicKey)
+    let epoch = _loadCurrentEpoch(execChainId_)
+    let t = _loadT(execChainId_, epoch)
+
+    strict err =
+        _whenInitialized() &&
+        _validateInt(eventId_, 0, MAX_INT, "submitS: invalid eventId") &&
+        _validateInt(execChainId_, 0, MAX_INT, "submitS: invalid execChainId") &&
+        _validateString(rSigma_, "submitS: invalid r sigma") && # TODO: should we check match with previous r_sigma published ?
+        _validateString(s_, "submitS: invalid s") &&
+        _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitS: not active") &&
+        _checkSecDepo(callerPublicKey, "submitS: not enough security deposit") &&
+        _checkEventStatusForSubmitS(eventId_, "submitS: invalid event status") &&
+        _notSubmittedS(eventId_, callerPublicKey, "submitS: already submitted") &&
+        _submittedR(eventId_, callerPublicKey, "submitS: R is not submitted")
+
+    let sArray = _loadSsByEvent(eventId_)
+    let signersArray = _loadSignersWithSByEvent(eventId_)
+    let eventStatusActions =
+        if sArray.size() + 1 == t then
+            strict err1 = _validateString(sSigma_, "submitS: invalid s sigma")
+
+            let executorIdxSize = _loadSignedEventExecutorIdxSize(execChainId_)
+            let rewardAddresses = _publicKeysToAddrsStr(signersArray :+ callerPublicKey)
+            strict witnessesRewards = invoke(_loadRewardTokenAddress(), FUNC_MINT_MANY, [_loadRewardAmount(), rewardAddresses], [])
+
+            _saveEventStatus(eventId_, EVENT_STATUS_DONE) ++
+            _saveSignedEventExecutorIdx(execChainId_, executorIdxSize, eventId_) ++
+            _saveSignedEventExecutorIdxSize(execChainId_, executorIdxSize + 1) ++
+            _saveSSigmaByEvent(eventId_, sSigma_)
+        else []
+
+    (
+        _saveSsByEvent(eventId_, sArray :+ s_) ++
+        _saveSByEventAndSigner(eventId_, callerPublicKey, s_) ++
+        _saveSignersWithSByEvent(eventId_, signersArray :+ callerPublicKey) ++
+        _saveRSigmaByEvent(eventId_, rSigma_) ++
+        eventStatusActions,
+        unit
+    )
+}
+
+@Callable(i)
+func reset(eventId_: Int, execChainId_: Int, r_: String) = {
+    let callerPublicKey = toBase58String(i.callerPublicKey)
+    let epoch = _loadCurrentEpoch(execChainId_)
+
+    strict err =
+        _whenInitialized() &&
+        _validateInt(eventId_, 0, MAX_INT, "reset: invalid eventId") &&
+        _validateInt(execChainId_, 0, MAX_INT, "reset: invalid execChainId") &&
+        _validateString(r_, "reset: invalid r") &&
+        _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "reset: not active") &&
+        _checkSecDepo(callerPublicKey, "reset: not enough security deposit") &&
+        _checkEventStatusForReset(eventId_, "reset: invalid event status")
+
+    let slashAmount = 0
+    let signersWithR = _loadSignersWithRByEvent(eventId_)
+    let signersWithS = _loadSignersWithSByEvent(eventId_)
+    let result = _slashIncorrect(signersWithR, signersWithS)
+    let slashingActions = result._1
+    let compensatedSigners = result._2
+    let compensation = result._3
+    let compensationActions = _compensateCorrect(compensatedSigners, compensation)
+
+    (
+        _saveRsByEvent(eventId_, [r_]) ++
+        _saveRByEventAndSigner(eventId_, callerPublicKey, r_) ++
+        _saveSignersWithRByEvent(eventId_, [callerPublicKey]) ++
+        _saveRSigmaByEvent(eventId_, "") ++
+        _saveSSigmaByEvent(eventId_, "") ++
+        _saveEventStatus(eventId_, EVENT_STATUS_INIT) ++
+        slashingActions ++
+        compensationActions,
+        unit
+    )
+}
+
+@Callable(i)
+func addSecurityDeposit(recipient_: String) = {
+    let recipient = if recipient_ == "" then i.caller.toString() else recipient_
+
+    strict err =
+        _validateAddress(recipient, "addSecurityDeposit: invalid recipient") &&
+        _validatePaymentsSize(i.payments, 1, "addSecurityDeposit: no payment") &&
+        _validatePaymentAsset(i.payments[0], unit, "addSecurityDeposit: invalid asset")
+
+    let recipientAddr = addressFromStringValue(recipient)
+    let balance = _loadSecDepo(recipientAddr)
+    let updatedBalance = balance + i.payments[0].amount
+
+    (_saveSecDepo(recipientAddr, updatedBalance), unit)
+}
+
+@Callable(i)
+func subSecurityDeposit(amount_: Int) = {
+    let balance = _loadSecDepo(i.caller)
+
+    strict err =
+        _isZeroLock(i.callerPublicKey.toBase58String(), "subSecurityDeposit: locked") &&
+        if balance < amount_ then
+            throw("subSecurityDeposit: insufficient balance")
+        else true
+
+    (
+        _saveSecDepo(i.caller, balance - amount_) ++ 
+        [ScriptTransfer(i.caller, amount_, unit)], unit
+    )
+}
+
+@Callable(i)
+func setMultisig(multisig_: String) = {
+    strict err =
+        _onlyThisContract(i.caller) &&
+        _validateAddress(multisig_, "setMultisig: invalid multisig address")
+
+    (_saveMultisig(addressFromStringValue(multisig_)), unit)
+}
+
+@Verifier(tx)
+func verify() = {
+    match getString(KEY_MULTISIG) {
+        case multisig: String => 
+            multisig
+                .addressFromStringValue()
+                .getBoolean(makeString([KEY_STATUS, this.toString(), tx.id.toBase58String()], SEPARATOR))
+                .valueOrElse(false)
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}

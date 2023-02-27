@@ -1,0 +1,36 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEPARATOR = "__"
+let REWARD_COMPENSATION = 500000
+let CLAIM_INTERVAL = 1440
+
+
+@Callable(i)
+func bigintToBinary(a_: Int) = {
+    let _a = a_.toBigInt()
+    (
+        [
+            BinaryEntry("BINARY_INT", _a.toBytes())
+        ], unit
+    )
+}
+
+@Callable(i)
+func setMultisigParams(
+    address_: String,
+    txid_: String,
+    isValid_: Boolean
+) = {
+    (
+        [
+            BooleanEntry("STATUS__" + address_ + SEPARATOR + txid_, isValid_)
+        ], unit
+    )
+}
+
+@Verifier(tx)
+func verify() = {
+    sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+}

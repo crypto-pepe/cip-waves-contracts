@@ -1,5 +1,6 @@
 import {
   getAccountByName,
+  getBlockHeight,
   getContractByName,
   getDataValue,
   invoke,
@@ -23,12 +24,12 @@ import { setSignedContext } from '../../steps/common';
 const env = getEnvironment();
 
 /**
- * BUG:   1) [call] have no caller address validation
- *        2) [call] nonce in event set after increment but need BEFORE
+ * BUG:   1) [MINOR] call(), have no caller address validation
+ *        2) [MINOR] call(), nonce in event set after increment but need BEFORE
  */
 describe('EVM Caller component', function () {
   // REQUIRED: clear state
-  describe('before all special tests', async () => {
+  xdescribe('before all special tests', async () => {
     it('[init] should throw when multisig not set', async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
@@ -190,7 +191,7 @@ describe('EVM Caller component', function () {
       );
     });
 
-    // eslint-disable-next-line prettier/prettier
+    // eslint-disable-next-line prettier/prettier, quotes
     it("should throw when invalid pauser's address", async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -903,7 +904,7 @@ describe('EVM Caller component', function () {
         });
       });
       await stepIgnoreErrorByMessage(
-        // eslint-disable-next-line prettier/prettier
+        // eslint-disable-next-line prettier/prettier, quotes
         "try to update pauser's address",
         'Error while executing dApp: _onlyThisContract: revert',
         async () => {
@@ -942,7 +943,7 @@ describe('EVM Caller component', function () {
         });
       });
       await stepIgnoreErrorByMessage(
-        // eslint-disable-next-line prettier/prettier
+        // eslint-disable-next-line prettier/prettier, quotes
         "try to update pauser's address",
         'Error while executing dApp: _whenInitialized: revert',
         async () => {
@@ -958,7 +959,7 @@ describe('EVM Caller component', function () {
     /**
      * MEMO: maybe update error message for wrong pauser address?
      */
-    // eslint-disable-next-line prettier/prettier
+    // eslint-disable-next-line prettier/prettier, quotes
     it("should throw when invalid pauser's address", async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -975,7 +976,7 @@ describe('EVM Caller component', function () {
         });
       });
       await stepIgnoreErrorByMessage(
-        // eslint-disable-next-line prettier/prettier
+        // eslint-disable-next-line prettier/prettier, quotes
         "try to update pauser's address",
         'Error while executing dApp: init: invalid pauser',
         async () => {
@@ -999,7 +1000,7 @@ describe('EVM Caller component', function () {
           ],
         });
       });
-      // eslint-disable-next-line prettier/prettier
+      // eslint-disable-next-line prettier/prettier, quotes
       await step("update pauser's address", async () => {
         await updatePauser(user.address);
       });
@@ -1026,7 +1027,7 @@ describe('EVM Caller component', function () {
           ],
         });
       });
-      // eslint-disable-next-line prettier/prettier
+      // eslint-disable-next-line prettier/prettier, quotes
       await step("update pauser's address", async () => {
         await updatePauser(user.address);
       });
@@ -1036,7 +1037,7 @@ describe('EVM Caller component', function () {
           user.address
         );
       });
-      // eslint-disable-next-line prettier/prettier
+      // eslint-disable-next-line prettier/prettier, quotes
       await step("update pauser's address again", async () => {
         await updatePauser(user.address);
       });
@@ -1496,11 +1497,13 @@ describe('EVM Caller component', function () {
             { key: 'EVENT_SIZE', type: 'integer', value: 123 },
             { key: 'NONCE', type: 'integer', value: 123 },
             { key: 'CALL_CHAIN_ID', type: 'integer', value: 0 },
+            { key: 'EVENT__0', type: 'string', value: '' },
           ],
         });
       });
+      let tx: any;
       await step('call', async () => {
-        await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(0, 'execution contract_', 'calldata', user);
       });
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1514,9 +1517,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__123', env.network))
           // eslint-disable-next-line prettier/prettier
-          .to.be.equal(
-            `0__0__${user.address}__execution contract___calldata__123`
-          );
+          .is.contains(`0__0__${user.address}__execution contract___calldata__123__${tx.id}__`);
       });
     });
 
@@ -1537,20 +1538,27 @@ describe('EVM Caller component', function () {
             { key: 'EVENT_SIZE', type: 'integer', value: 123 },
             { key: 'NONCE', type: 'integer', value: 321 },
             { key: 'CALL_CHAIN_ID', type: 'integer', value: 0 },
+            { key: 'EVENT__123', type: 'string', value: '' },
+            { key: 'EVENT__124', type: 'string', value: '' },
           ],
         });
       });
+      let tx: any;
       await step('call', async () => {
-        await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(0, 'execution contract_', 'calldata', user);
       });
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
         expect(
           await getDataValue(contract, 'EVENT_SIZE', env.network)
         ).to.be.equal(124);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVENT__123', env.network))
+          // eslint-disable-next-line prettier/prettier
+          .is.contains(`0__0__${user.address}__execution contract___calldata__321__${tx.id}__`);
       });
       await step('call again with the same data', async () => {
-        await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(0, 'execution contract_', 'calldata', user);
       });
       await step('check state again', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1564,9 +1572,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__124', env.network))
           // eslint-disable-next-line prettier/prettier
-          .to.be.equal(
-            `0__0__${user.address}__execution contract___calldata__322`
-          );
+          .is.contains(`0__0__${user.address}__execution contract___calldata__322__${tx.id}__`);
       });
     });
 
@@ -1590,11 +1596,13 @@ describe('EVM Caller component', function () {
             { key: 'EVENT_SIZE', type: 'integer', value: 0 },
             { key: 'NONCE', type: 'integer', value: 0 },
             { key: 'CALL_CHAIN_ID', type: 'integer', value: 0 },
+            { key: 'EVENT__0', type: 'string', value: '' },
           ],
         });
       });
+      let tx: any;
       await step('call', async () => {
-        await selfCall(0, 'execution contract_', 'calldata');
+        tx = await selfCall(0, 'execution contract_', 'calldata');
       });
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1608,9 +1616,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__0', env.network))
           // eslint-disable-next-line prettier/prettier
-          .to.be.equal(
-            `0__0__${contract.dApp}__execution contract___calldata__0`
-          );
+          .is.contains(`0__0__${contract.dApp}__execution contract___calldata__0__${tx.id}__`);
       });
     });
   });

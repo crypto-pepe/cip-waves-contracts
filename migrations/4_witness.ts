@@ -38,7 +38,7 @@ export default async function (
   console.log('Witness contract address =', witnessContractAddress);
 
   // Deploy witnessContract
-  const deployScriptFee = 170000000;
+  const deployScriptFee = 2600000;
   await transfer(
     {
       amount: deployScriptFee + 2 * network.invokeFee,
@@ -97,7 +97,7 @@ export default async function (
           },
           {
             type: 'integer',
-            value: 100000000, // rewardAmount_
+            value: 100000, // rewardAmount_
           },
         ],
       },

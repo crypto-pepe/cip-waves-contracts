@@ -13,10 +13,11 @@
     "reset-state": "npm run stop-node && npm run drop-node && npm run start-node",
     "explorer": "docker run -d -e API_NODE_URL=http://localhost:6869 -e NODE_LIST=http://localhost:6869 -p 3000:8080 wavesplatform/explorer",
     "compile": "surfboard compile --fullInfo",
-    "test": "npm run test-caller && npm run test-witness",
+    "test": "npm run test-caller && npm run test-witness && npm run test-mintable-token && npm run test-executor",
     "test-witness": "mocha --config .mocharc.witness.json ./test/witness/*.test.ts",
     "test-caller": "mocha --config .mocharc.evm.caller.json ./test/evm.caller/*.test.ts",
     "test-executor": "mocha --config .mocharc.executor.json ./test/executor/*.test.ts",
+    "test-mintable-token": "mocha --config .mocharc.mintable.token.json ./test/mintable.token/*.test.ts",
     "deploy": "npx ts-node scripts/migrations.ts"
   },
   "repository": {

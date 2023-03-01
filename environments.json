@@ -49,6 +49,7 @@
       "evm_caller",
       "executor",
       "witness",
+      "mintable_token",
       "technical"
     ],
     "contractsPath": "ride/",
@@ -119,6 +120,7 @@
       "evm_caller",
       "executor",
       "witness",
+      "mintable_token",
       "technical"
     ],
     "contractsPath": "ride/",
@@ -186,7 +188,8 @@
     "contracts": [
       "evm_caller",
       "executor",
-      "witness"
+      "witness",
+      "mintable_token"
     ],
     "contractsPath": "ride/",
     "contractsExtention": ".ride",

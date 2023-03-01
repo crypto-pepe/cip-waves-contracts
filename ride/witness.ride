@@ -10,14 +10,20 @@ let KEY_STATUS = "STATUS"
 let KEY_PROXY_SEC_DEPO = "PROXY_SECURITY_DEPOSIT"
 let KEY_PROXY_SEC_DEPO_PER_EVENT = "PROXY_SECURITY_DEPOSIT_PER_EVENT"
 let KEY_WAVES_EVENT = "WAVES_EVENT"
+let KEY_EVM_EVENT = "EVM_EVENT"
 let KEY_WAVES_EVENT_SIZE = "WAVES_EVENT_SIZE"
+let KEY_EVM_EVENT_SIZE = "EVM_EVENT_SIZE"
 let KEY_WAVES_EVENT_STATUS = "WAVES_EVENT_STATUS"
+let KEY_EVM_EVENT_STATUS = "EVM_EVENT_STATUS"
 let KEY_WAVES_EVENT_PUBLISHED = "WAVES_EVENT_PUBLISHED"
+let KEY_EVM_EVENT_PUBLISHED = "EVM_EVENT_PUBLISHED"
 let KEY_CURRENT_EPOCH = "CURRENT_EPOCH"
 let KEY_SIZE = "SIZE"
 let KEY_WAVES_EVENT_CALLER = "WAVES_EVENT_CALLER"
+let KEY_EVM_EVENT_CALLER = "EVM_EVENT_CALLER"
 let KEY_WITNESSES_PER_EPOCH = "WITNESSES_PER_EPOCH"
 let KEY_WAVES_EVENT_EXECUTOR = "WAVES_EVENT_EXECUTOR"
+let KEY_EVM_EVENT_EXECUTOR = "EVM_EVENT_EXECUTOR"
 let KEY_REWARD_TOKEN_ADDRESS = "REWARD_TOKEN_ADDRESS"
 let KEY_REWARD_AMOUNT = "REWARD_AMOUNT"
 
@@ -96,6 +102,15 @@ func _validatePublicKeys(publicKeys_: List[String], err_: String) = {
     result._1
 }
 
+# ---------- Converting functions ----------
+
+func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
+    func foldfunc(acc_: List[String], elem_: String) = {
+        acc_ :+ addressFromPublicKey(elem_.fromBase58String())
+    }
+    FOLD<51>(publicKeys_, [], foldfunc)
+}
+
 # ---------- Data structures functions ----------
 
 func _loadInit() = {
@@ -156,6 +171,17 @@ func _saveWavesEventSize(val_: Int) = {
     [IntegerEntry(KEY_WAVES_EVENT_SIZE, val_)]
 }
 
+func _loadEVMEventSize() = {
+    match getInteger(KEY_EVM_EVENT_SIZE) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventSize(val_: Int) = {
+    [IntegerEntry(KEY_EVM_EVENT_SIZE, val_)]
+}
+
 func _loadWavesEvent(index_: Int) = {
     match getString(makeString([KEY_WAVES_EVENT, index_.toString()], SEPARATOR)) {
         case a:String =>
@@ -202,6 +228,50 @@ func _saveWavesEvent(index_: Int, event_: (Int, Int, Int, String, String, String
     )]
 }
 
+func _loadEVMEvent(index_: Int) = {
+    match getString(makeString([KEY_EVM_EVENT, index_.toString()], SEPARATOR)) {
+        case a:String =>
+            let struct = a.split(SEPARATOR)
+            (
+                struct[0].parseIntValue(),          # callerChainId_
+                struct[1].parseIntValue(),          # executionChainId_
+                struct[2].parseIntValue(),          # nonce_
+                struct[3],                          # caller_
+                struct[4],                          # executionContract_
+                struct[5],                          # calldata_
+                struct[6],                          # txHash_
+                struct[7].parseIntValue(),          # blockNumber_
+                struct[8],                          # eventHash_
+                struct[9].parseIntValue(),          # confirmations_
+                struct[10].parseIntValue(),         # total_
+                struct[11].parseIntValue(),         # proxy_sec_depo
+                struct[12].addressFromStringValue() # proxy_address
+            )
+        case _ => (0, 0, 0, "", "", "", "", 0, "", 0, 0, 0, Address(base58''))
+    }
+}
+
+func _saveEVMEvent(index_: Int, event_: (Int, Int, Int, String, String, String, String, Int, String, Int, Int, Int, Address)) = {
+    [StringEntry(
+        makeString([KEY_EVM_EVENT, index_.toString()], SEPARATOR),
+        makeString([
+            event_._1.toString(),                   # callerChainId_
+            event_._2.toString(),                   # executionChainId_
+            event_._3.toString(),                   # nonce_
+            event_._4,                              # caller_
+            event_._5,                              # executionContract_
+            event_._6,                              # calldata_
+            event_._7,                              # txHash_
+            event_._8.toString(),                   # blockNumber_
+            event_._9,                              # eventHash_
+            event_._10.toString(),                  # confirmations_
+            event_._11.toString(),                  # total_
+            event_._12.toString(),                  # proxy_sec_depo
+            event_._13.toString()                   # proxy_address
+        ], SEPARATOR)
+    )]
+}
+
 func _loadWavesEventStatus(eventHash_: String) = {
     match getInteger(makeString([KEY_WAVES_EVENT_STATUS, eventHash_], SEPARATOR)) {
         case a:Int => a
@@ -216,6 +286,20 @@ func _saveWavesEventStatus(eventHash_: String, status_: Int) = {
     )]
 }
 
+func _loadEVMEventStatus(eventHash_: String) = {
+    match getInteger(makeString([KEY_EVM_EVENT_STATUS, eventHash_], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventStatus(eventHash_: String, status_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_EVM_EVENT_STATUS, eventHash_], SEPARATOR),
+        status_
+    )]
+}
+
 func _loadPublishedWavesEventByWitness(publicKey_: String, eventId_: Int) = {
     match getInteger(makeString([KEY_WAVES_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR)) {
         case a:Int => a
@@ -226,6 +310,20 @@ func _loadPublishedWavesEventByWitness(publicKey_: String, eventId_: Int) = {
 func _savePublishedWavesEventByWitness(publicKey_: String, eventId_: Int, val_: Int) = {
     [IntegerEntry(
         makeString([KEY_WAVES_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR),
+        val_
+    )]
+}
+
+func _loadPublishedEVMEventByWitness(publicKey_: String, eventId_: Int) = {
+    match getInteger(makeString([KEY_EVM_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _savePublishedEVMEventByWitness(publicKey_: String, eventId_: Int, val_: Int) = {
+    [IntegerEntry(
+        makeString([KEY_EVM_EVENT_PUBLISHED, publicKey_, eventId_.toString()], SEPARATOR),
         val_
     )]
 }
@@ -263,6 +361,28 @@ func _saveWavesEventCallerIdx(callerChainId_: Int, idx_: Int, val_: Int) = {
     [IntegerEntry(makeString([KEY_WAVES_EVENT_CALLER, callerChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
 }
 
+func _loadEVMEventCallerIdxSize(callerChainId_: Int) = {
+    match getInteger(makeString([KEY_EVM_EVENT_CALLER, callerChainId_.toString(), KEY_SIZE], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventCallerIdxSize(callerChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVM_EVENT_CALLER, callerChainId_.toString(), KEY_SIZE], SEPARATOR), val_)] 
+}
+
+func _loadEVMEventCallerIdx(callerChainId_: Int, idx_: Int) = {
+    match getInteger(makeString([KEY_EVM_EVENT_CALLER, callerChainId_.toString(), idx_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventCallerIdx(callerChainId_: Int, idx_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVM_EVENT_CALLER, callerChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
+}
+
 func _loadWavesEventExecutorIdxSize(executionChainId_: Int) = {
     match getInteger(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR)) {
         case a:Int => a
@@ -283,6 +403,28 @@ func _loadWavesEventExecutorIdx(executionChainId_: Int, idx_: Int) = {
 
 func _saveWavesEventExecutorIdx(executionChainId_: Int, idx_: Int, val_: Int) = {
     [IntegerEntry(makeString([KEY_WAVES_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
+}
+
+func _loadEVMEventExecutorIdxSize(executionChainId_: Int) = {
+    match getInteger(makeString([KEY_EVM_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventExecutorIdxSize(executionChainId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVM_EVENT_EXECUTOR, executionChainId_.toString(), KEY_SIZE], SEPARATOR), val_)] 
+}
+
+func _loadEVMEventExecutorIdx(executionChainId_: Int, idx_: Int) = {
+    match getInteger(makeString([KEY_EVM_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func _saveEVMEventExecutorIdx(executionChainId_: Int, idx_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVM_EVENT_EXECUTOR, executionChainId_.toString(), idx_.toString()], SEPARATOR), val_)]
 }
 
 func _loadWitnesses(callerChainId_: Int, epoch_: Int) = {
@@ -365,14 +507,31 @@ func _notConfirmedWavesEvent(eventHash_: String, err_: String) = {
     else true
 }
 
+func _notConfirmedEVMEvent(eventHash_: String, err_: String) = {
+    if _loadEVMEventStatus(eventHash_) == EVENT_STATUS_CONFIRMED then false
+    else true
+}
+
 func _wavesEventNotExist(eventHash_: String, err_: String) = {
     if _loadWavesEventStatus(eventHash_) != 0 then
         throw(err_)
     else true
 }
 
+func _evmEventNotExist(eventHash_: String, err_: String) = {
+    if _loadEVMEventStatus(eventHash_) != 0 then
+        throw(err_)
+    else true
+}
+
 func _notPublishedWavesEventByWitness(publicKey_: String, eventId_: Int, err_: String) = { 
     if _loadPublishedWavesEventByWitness(publicKey_, eventId_) != 0 then
+        throw(err_)
+    else true
+}
+
+func _notPublishedEVMEventByWitness(publicKey_: String, eventId_: Int, err_: String) = { 
+    if _loadPublishedEVMEventByWitness(publicKey_, eventId_) > 0 then
         throw(err_)
     else true
 }
@@ -394,7 +553,7 @@ func _getEventStatus(confirmations_: Int, total_: Int, witnessSize_: Int) = {
 
 # ---------- Hashing functions ----------
 
-func _calcEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address)) = {
+func _calcWavesEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address)) = {
     let eventBytes =
         event_._1.toBytes() +
         event_._2.toBytes() +
@@ -409,9 +568,23 @@ func _calcEventHash(event_: (Int, Int, Int, String, String, String, List[String]
     keccak256_16Kb(eventBytes).toBase58String()
 }
 
+func _calcEVMEventHash(event_: (Int, Int, Int, String, String, String, String, Int, String, Int, Int, Int, Address)) = {
+    let eventBytes =
+        event_._1.toBytes() +
+        event_._2.toBytes() +
+        event_._3.toBytes() +
+        event_._4.toBytes() +
+        event_._5.toBytes() +
+        event_._6.toBytes() +
+        event_._7.toBytes() + 
+        event_._8.toBytes()
+
+    keccak256_16Kb(eventBytes).toBase58String()
+}
+
 # ---------- Utils functions ----------
 
-func _setEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), hash_: String) = {
+func _setWavesEventHash(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), hash_: String) = {
     (
         event_._1,
         event_._2,
@@ -430,7 +603,25 @@ func _setEventHash(event_: (Int, Int, Int, String, String, String, List[String],
     )
 }
 
-func _setEventConfirmations(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), confirmations_: Int, total_: Int) = {
+func _setEVMEventHash(event_: (Int, Int, Int, String, String, String, String, Int, String, Int, Int, Int, Address), hash_: String) = {
+    (
+        event_._1,
+        event_._2,
+        event_._3,
+        event_._4,
+        event_._5,
+        event_._6,
+        event_._7,
+        event_._8,
+        hash_,
+        event_._10,
+        event_._11,
+        event_._12,
+        event_._13
+    )
+}
+
+func _setWavesEventConfirmations(event_: (Int, Int, Int, String, String, String, List[String], String, Int, String, Int, Int, Int, Address), confirmations_: Int, total_: Int) = {
     (
         event_._1,
         event_._2,
@@ -449,11 +640,22 @@ func _setEventConfirmations(event_: (Int, Int, Int, String, String, String, List
     )
 }
 
-func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
-    func foldfunc(acc_: List[String], elem_: String) = {
-        acc_ :+ addressFromPublicKey(elem_.fromBase58String()).toString()
-    }
-    FOLD<51>(publicKeys_, [], foldfunc)
+func _setEVMEventConfirmations(event_: (Int, Int, Int, String, String, String, String, Int, String, Int, Int, Int, Address), confirmations_: Int, total_: Int) = {
+    (
+        event_._1,
+        event_._2,
+        event_._3,
+        event_._4,
+        event_._5,
+        event_._6,
+        event_._7,
+        event_._8,
+        event_._9,
+        confirmations_,
+        total_,
+        event_._12,
+        event_._13
+    )
 }
 
 # ---------- Public callable functions ----------
@@ -537,8 +739,8 @@ func submitWavesCallEvent(
     )
 
     let eventSize = _loadWavesEventSize()
-    let eventHash = _calcEventHash(event)
-    let eventUpdated = _setEventHash(event, eventHash)
+    let eventHash = _calcWavesEventHash(event)
+    let eventUpdated = _setWavesEventHash(event, eventHash)
 
     strict err1 =
         _wavesEventNotExist(eventHash, "submitWavesCallEvent: already exists") &&
@@ -553,6 +755,68 @@ func submitWavesCallEvent(
         _saveWavesEventSize(eventSize + 1) ++
         _saveWavesEventCallerIdx(callerChainId_, callerIdxSize, eventSize) ++
         _saveWavesEventCallerIdxSize(callerChainId_, callerIdxSize + 1)
+        , unit
+    )
+}
+
+@Callable(i)
+func submitEVMCallEvent(
+    callerChainId_: Int,
+    executionChainId_: Int,
+    nonce_: Int,
+    caller_: String,
+    executionContract_: String,
+    calldata_: String,
+    txHash_: String,
+    blockNumber_: Int
+) = {
+    strict err =
+        _validateInt(callerChainId_, 0, MAX_INT, "submitEVMCallEvent: invalid callerChainId") &&
+        _validateInt(executionChainId_, 0, MAX_INT, "submitEVMCallEvent: invalid executionChainId") &&
+        _validateInt(nonce_, 0, MAX_INT, "submitEVMCallEvent: invalid nonce") &&
+        _validateString(caller_, "submitEVMCallEvent: invalid caller") &&
+        _validateString(executionContract_, "submitEVMCallEvent: invalid executionContract") &&
+        _validateString(calldata_, "submitEVMCallEvent: invalid functionName") &&
+        _validateString(txHash_, "submitEVMCallEvent: invalid txHash") &&
+        _validateInt(blockNumber_, 0, MAX_INT, "submitEVMCallEvent: invalid blockNumber")
+
+    let proxySecDepo = _loadProxySecDepo(i.caller)
+    let proxySecDepoPerEvent = _loadProxySecDepoPerEvent()
+    let proxySecDepoUpdated = proxySecDepo - proxySecDepoPerEvent
+
+    let event = (
+        callerChainId_,
+        executionChainId_,
+        nonce_,
+        caller_,
+        executionContract_,
+        calldata_,
+        txHash_,
+        blockNumber_,
+        "",
+        0,
+        0,
+        proxySecDepoPerEvent,
+        i.caller
+    )
+
+    let eventSize = _loadEVMEventSize()
+    let eventHash = _calcEVMEventHash(event)
+    let eventUpdated = _setEVMEventHash(event, eventHash)
+
+    strict err1 =
+        _evmEventNotExist(eventHash, "submitEVMCallEvent: already exists") &&
+        _validateInt(proxySecDepoUpdated, 0, MAX_INT, "submitEVMCallEvent: no security deposit")
+
+    let callerIdxSize = _loadEVMEventCallerIdxSize(callerChainId_)
+
+    (
+        _saveProxySecDepo(i.caller, proxySecDepoUpdated) ++
+        _saveEVMEvent(eventSize, eventUpdated) ++ 
+        _saveEVMEventStatus(eventHash, EVENT_STATUS_PROCESSING) ++
+        _saveEVMEventSize(eventSize + 1) ++
+        _saveEVMEventCallerIdx(callerChainId_, callerIdxSize, eventSize) ++
+        _saveEVMEventCallerIdxSize(callerChainId_, callerIdxSize + 1)
         , unit
     )
 }
@@ -585,9 +849,9 @@ func publishWavesEventStatus(eventIdx_: Int, status_: Int) = {
 
     let eventUpdated = 
         if status_ == EVENT_STATUS_CONFIRMED then
-            _setEventConfirmations(event, eventConfirmations + 1, eventTotal + 1)
+            _setWavesEventConfirmations(event, eventConfirmations + 1, eventTotal + 1)
         else if status_ == EVENT_STATUS_REJECTED then
-            _setEventConfirmations(event, eventConfirmations, eventTotal + 1)
+            _setWavesEventConfirmations(event, eventConfirmations, eventTotal + 1)
         else throw("publishWavesEventStatus: incorrect status")
 
     let executorIdxSize = _loadWavesEventExecutorIdxSize(executionChainId)
@@ -614,6 +878,67 @@ func publishWavesEventStatus(eventIdx_: Int, status_: Int) = {
     (
         _saveWavesEvent(eventIdx_, eventUpdated) ++
         _savePublishedWavesEventByWitness(callerPublicKey, eventIdx_, status_) ++
+        finalization, unit
+    )
+}
+
+@Callable(i)
+func publishEVMEventStatus(eventIdx_: Int, status_: Int) = {
+    let eventSize = _loadEVMEventSize()
+    let callerPublicKey = i.callerPublicKey.toBase58String()
+
+    strict err =
+        _validateEventIdx(eventIdx_, eventSize, "publishEVMEventStatus: invalid event idx") &&
+        _validateEventStatus(status_, "publishEVMEventStatus: invalid status")
+
+    let event = _loadEVMEvent(eventIdx_)
+    let callerChainId = event._1
+    let executionChainId = event._2
+    let eventHash = event._9
+    let eventConfirmations = event._10
+    let eventTotal = event._11
+    let proxySecDepo = event._12
+    let proxy = event._13
+
+    let epoch = _loadCurrentEpoch(callerChainId)
+    let activeWitnesses = _loadWitnesses(callerChainId, epoch)
+
+    strict err1 =
+        _isActiveWitness(i.callerPublicKey.toBase58String(), activeWitnesses, "publishEVMEventStatus: invalid caller") &&
+        _notConfirmedEVMEvent(eventHash, "publishEVMEventStatus: event already confirmed") &&
+        _notPublishedEVMEventByWitness(callerPublicKey, eventIdx_, "publishEVMEventStatus: already published")
+
+    let eventUpdated = 
+        if status_ == EVENT_STATUS_CONFIRMED then
+            _setEVMEventConfirmations(event, eventConfirmations + 1, eventTotal + 1)
+        else if status_ == EVENT_STATUS_REJECTED then
+            _setEVMEventConfirmations(event, eventConfirmations, eventTotal + 1)
+        else throw("publishEVMEventStatus: incorrect status")
+
+    let executorIdxSize = _loadEVMEventExecutorIdxSize(executionChainId)
+    let finalization =
+        if _isQuorumReached(eventUpdated._11, eventUpdated._12, activeWitnesses.size()) then
+            let status = _getEventStatus(eventUpdated._11, eventUpdated._12, activeWitnesses.size())
+
+            let proxySecDepoUpdated =
+                if status == EVENT_STATUS_CONFIRMED then
+                    _saveProxySecDepo(proxy, _loadProxySecDepo(proxy) + proxySecDepo)
+                else if status == EVENT_STATUS_REJECTED then
+                    [ScriptTransfer(_loadMultisig(), proxySecDepo, unit)]
+                else []
+
+            let rewardAddresses = proxy.toString() :: _publicKeysToAddrsStr(activeWitnesses)
+            strict witnessesRewards = invoke(_loadRewardTokenAddress(), FUNC_MINT_MANY, [_loadRewardAmount(), rewardAddresses], [])
+
+            proxySecDepoUpdated ++
+            _saveEVMEventStatus(eventHash, status) ++
+            _saveEVMEventExecutorIdx(executionChainId, executorIdxSize, eventIdx_) ++
+            _saveEVMEventExecutorIdxSize(executionChainId, executorIdxSize + 1)
+        else []
+
+    (
+        _saveEVMEvent(eventIdx_, eventUpdated) ++
+        _savePublishedEVMEventByWitness(callerPublicKey, eventIdx_, status_) ++
         finalization, unit
     )
 }

@@ -185,4 +185,5 @@ export const selfCall = async (
   );
   await setTxSign(contract_.dApp, tx.id);
   await sendTransaction(tx);
+  return tx;
 };

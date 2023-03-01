@@ -1,4 +1,9 @@
-import { base58Decode, base58Encode, bytesToString, keccak, stringToBytes, TPrivateKey } from '@waves/ts-lib-crypto';
+import {
+  base58Decode,
+  base58Encode,
+  keccak,
+  TPrivateKey,
+} from '@waves/ts-lib-crypto';
 import {
   Account,
   Asset,
@@ -19,8 +24,6 @@ import {
   nodeInteraction,
 } from '@waves/waves-transactions';
 import { fetchDetails } from '@waves/node-api-js/cjs/api-node/assets';
-import * as eutils from 'ethereumjs-util';
-import * as secp256k1_1 from 'ethereum-cryptography/secp256k1';
 const env = getEnvironment();
 
 let multisigContract: Contract;
@@ -149,7 +152,7 @@ export const setSignedContext = async function (
 ) {
   const tx = await prepareDataTx(contract, data);
   await setTxSign(contract.dApp, tx.id);
-  await sendTransaction(tx);
+  return await sendTransaction(tx);
 };
 
 export type Sender = {
@@ -161,13 +164,14 @@ export type Sender = {
 export const signedTransfer = async function (
   sender: Sender,
   recpAddress: string,
-  amount: number
+  amount: number,
+  assetId: string | null = null
 ) {
   const tx = transfer(
     {
       recipient: recpAddress,
       amount: amount,
-      assetId: null,
+      assetId: assetId,
       fee: env.network.transferFee,
       feeAssetId: null,
       chainId: env.network.chainID,
@@ -283,46 +287,3 @@ export const concatenateBytes = (dataArray: Uint8Array[]): Uint8Array => {
   }
   return result;
 };
-
-export const signHash = async (privateKey_: string, message_: any) => {
-  // eslint-disable-next-line prettier/prettier
-  const msgHash = keccak(addByteArrays(message_.prefix, message_.old, message_.new));
-  const rawSign = eutils.ecsign(
-    Buffer.from(msgHash),
-    Buffer.from(base58Decode(privateKey_))
-  );
-  // eslint-disable-next-line prettier/prettier
-  const signature = addByteArrays(rawSign.r, rawSign.s, Uint8Array.from([rawSign.v]));
-  const recoveryPubKey = eutils.ecrecover(
-    Buffer.from(msgHash),
-    rawSign.v,
-    rawSign.r,
-    rawSign.s
-  );
-  console.info(recoveryPubKey);
-  console.info(`PRIVATE KEY: ${privateKey_}`);
-  console.info(`ORIGINAL PUBLIC KEY: ${message_.old}`);
-  console.info(`RECOVERY PUBLIC KEY: ${base58Encode(recoveryPubKey)}`);
-  // eslint-disable-next-line prettier/prettier
-  // const { signature } = secp256k1_1.ecdsaSign(msgHash, base58Decode(privateKey_));
-  // const signature = signBytes(privateKey_, message_);
-  // console.info(`PRIVATE KEY: ${privateKey_}`);
-  // const signature = await secp.sign(message_, privateKey_);
-  // const signKey = new ethers.utils.SigningKey(stringToBytes(privateKey_));
-  // const separateSignature = signKey.signDigest(message_);
-  // const signature = ethers.utils.joinSignature(separateSignature);
-  // console.info(signature);
-  return base58Encode(signature);
-};
-
-function addByteArrays(
-  array1: Uint8Array,
-  array2: Uint8Array,
-  array3: Uint8Array
-): Uint8Array {
-  const result = new Uint8Array(array1.length + array2.length + array3.length);
-  result.set(array1, 0);
-  result.set(array2, array1.length);
-  result.set(array3, array1.length + array2.length);
-  return result;
-}

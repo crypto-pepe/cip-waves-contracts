@@ -105,7 +105,7 @@ export default async function (
           },
           {
             type: 'integer',
-            value: 100000000, // rewardAmount_
+            value: 200000, // rewardAmount_
           },
         ],
       },

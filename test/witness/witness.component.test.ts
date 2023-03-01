@@ -41,7 +41,7 @@ describe('Witness component', function () {
   /**
    * REQUIRED: clear state
    */
-  describe('before all special tests', async () => {
+  xdescribe('before all special tests', async () => {
     it('[init] should throw when multisig not set', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       // eslint-disable-next-line prettier/prettier

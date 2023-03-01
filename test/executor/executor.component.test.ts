@@ -15,9 +15,14 @@ import {
   updatePauser,
   updateSigner,
 } from '../../steps/executor';
-import { base58Encode, keccak, randomBytes, signBytes, stringToBytes } from '@waves/ts-lib-crypto';
-import { setSignedContext, signHash } from '../../steps/common';
-import { sign, Sign } from 'crypto';
+import {
+  base16Encode,
+  base58Decode,
+  base58Encode,
+  signBytes,
+  stringToBytes,
+} from '@waves/ts-lib-crypto';
+import { setSignedContext } from '../../steps/common';
 const env = getEnvironment();
 
 const OLD_PREFIX = '<<<PUBLIC--KEY--MIGRATION--ALLOWED>>>';
@@ -49,9 +54,9 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('setMultisig tests', function () {
+  describe('setMultisig tests', function () {
     // Need a clear state
-    it('should throw when it is not self-call', async () => {
+    xit('should throw when it is not self-call', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const startMultisig = await getDataValue(
@@ -132,7 +137,7 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('init tests', function () {
+  describe('init tests', function () {
     it('should throw when no self-call', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -465,7 +470,7 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('updatePauser tests', function () {
+  describe('updatePauser tests', function () {
     it('should throw when not self-call', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -629,7 +634,7 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('pause tests', function () {
+  describe('pause tests', function () {
     it('should throw when call non-pauser', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techContract = getContractByName('technical', this.parent?.ctx);
@@ -765,7 +770,7 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('unpause tests', function () {
+  describe('unpause tests', function () {
     it('should throw when call non-pauser', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techContract = getContractByName('technical', this.parent?.ctx);
@@ -902,7 +907,7 @@ describe('Executor component', function () {
   });
 
   describe('updateSigner tests', function () {
-    xit('should throw when not self-call', async () => {
+    it('should throw when not self-call', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
@@ -944,7 +949,7 @@ describe('Executor component', function () {
       });
     });
 
-    xit('should throw when not initialized', async () => {
+    it('should throw when not initialized', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
       await step('set multisig', async () => {
@@ -972,7 +977,7 @@ describe('Executor component', function () {
       });
     });
 
-    xit('should throw when wrong public key', async () => {
+    it('should throw when wrong public key', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
       await step('set multisig', async () => {
@@ -1000,16 +1005,12 @@ describe('Executor component', function () {
       });
     });
 
-    /**
-     * BUG! It is not worked. In executor.ride on line 258 ecrecover returns not-compressed public key,
-     * but we expect compressed
-     */
     it('simple positive', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
       const pauser = getAccountByName('neo', this.parent?.ctx);
       const signer = getAccountByName('trinity', this.parent?.ctx);
-      const newSigner = getAccountByName('neo', this.parent?.ctx);
+      const newSigner = getAccountByName('morpheus', this.parent?.ctx);
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
       });
@@ -1022,26 +1023,22 @@ describe('Executor component', function () {
         await init(pauser.address, 0, signer.publicKey);
       });
       await step('update signer', async () => {
-        // eslint-disable-next-line prettier/prettier
-        const oldSignature = await signHash(
-          signer.privateKey.privateKey,
-          {
-            prefix: OLD_PREFIX,
-            old: signer.publicKey,
-            new: newSigner.publicKey,
-          }
+        const oldSignature = signBytes(
+          signer.privateKey,
+          addByteArrays(
+            stringToBytes(OLD_PREFIX),
+            base58Decode(signer.publicKey),
+            base58Decode(newSigner.publicKey)
+          )
         );
-        // eslint-disable-next-line prettier/prettier
-        const newSignature = '';//signBytes(
-        //   newSigner.privateKey,
-        //   keccak(
-        //     addByteArrays(
-        //       stringToBytes(OLD_PREFIX),
-        //       stringToBytes(signer.publicKey),
-        //       stringToBytes(newSigner.publicKey)
-        //     )
-        //   )
-        // );
+        const newSignature = signBytes(
+          newSigner.privateKey,
+          addByteArrays(
+            stringToBytes(NEW_PREFIX),
+            base58Decode(signer.publicKey),
+            base58Decode(newSigner.publicKey)
+          )
+        );
         // eslint-disable-next-line prettier/prettier
         await updateSigner(newSigner.publicKey, oldSignature, newSignature);
       });
@@ -1051,47 +1048,166 @@ describe('Executor component', function () {
       });
     });
 
-    xit('should throw when wrong old signer signature', async () => {});
+    it('should throw when wrong old signer signature', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const pauser = getAccountByName('neo', this.parent?.ctx);
+      const signer = getAccountByName('trinity', this.parent?.ctx);
+      const newSigner = getAccountByName('morpheus', this.parent?.ctx);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [{ key: 'INIT', type: 'boolean', value: false }],
+        });
+      });
+      await step('reinit (for set signer)', async () => {
+        await init(pauser.address, 0, signer.publicKey);
+      });
+      await stepIgnoreErrorByMessage(
+        'update signer',
+        'Error while executing dApp: updateSigner: invalid old signature',
+        async () => {
+          const oldSignature = signBytes(
+            signer.privateKey,
+            stringToBytes('wrong signature')
+          );
+          const newSignature = signBytes(
+            newSigner.privateKey,
+            addByteArrays(
+              stringToBytes(NEW_PREFIX),
+              base58Decode(signer.publicKey),
+              base58Decode(newSigner.publicKey)
+            )
+          );
+          // eslint-disable-next-line prettier/prettier
+          await updateSigner(newSigner.publicKey, oldSignature, newSignature);
+        }
+      );
+    });
 
-    xit('should throw when wrong new signer signature', async () => {});
+    it('should throw when wrong new signer signature', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const pauser = getAccountByName('neo', this.parent?.ctx);
+      const signer = getAccountByName('trinity', this.parent?.ctx);
+      const newSigner = getAccountByName('morpheus', this.parent?.ctx);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [{ key: 'INIT', type: 'boolean', value: false }],
+        });
+      });
+      await step('reinit (for set signer)', async () => {
+        await init(pauser.address, 0, signer.publicKey);
+      });
+      await stepIgnoreErrorByMessage(
+        'update signer',
+        'Error while executing dApp: updateSigner: invalid new signature',
+        async () => {
+          const oldSignature = signBytes(
+            signer.privateKey,
+            addByteArrays(
+              stringToBytes(OLD_PREFIX),
+              base58Decode(signer.publicKey),
+              base58Decode(newSigner.publicKey)
+            )
+          );
+          const newSignature = signBytes(
+            newSigner.privateKey,
+            stringToBytes('wrong signature')
+          );
+          // eslint-disable-next-line prettier/prettier
+          await updateSigner(newSigner.publicKey, oldSignature, newSignature);
+        }
+      );
+    });
 
-    xit('should throw when wrong both signers signature', async () => {});
+    it('should throw when wrong both signers signature', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const pauser = getAccountByName('neo', this.parent?.ctx);
+      const signer = getAccountByName('trinity', this.parent?.ctx);
+      const newSigner = getAccountByName('morpheus', this.parent?.ctx);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [{ key: 'INIT', type: 'boolean', value: false }],
+        });
+      });
+      await step('reinit (for set signer)', async () => {
+        await init(pauser.address, 0, signer.publicKey);
+      });
+      await stepIgnoreErrorByMessage(
+        'update signer',
+        'Error while executing dApp: updateSigner: invalid old signature',
+        async () => {
+          const oldSignature = signBytes(
+            signer.privateKey,
+            stringToBytes('wrong old signature')
+          );
+          const newSignature = signBytes(
+            newSigner.privateKey,
+            stringToBytes('wrong new signature')
+          );
+          // eslint-disable-next-line prettier/prettier
+          await updateSigner(newSigner.publicKey, oldSignature, newSignature);
+        }
+      );
+    });
   });
 
-//   xdescribe('execute tests', function () {
-//     it('should throw when not initialized', async () => {
-//       const contract = getContractByName('executor', this.parent?.ctx);
-//       const techConract = getContractByName('technical', this.parent?.ctx);
-//       await step('set multisig', async () => {
-//         await setMultisig(techConract.dApp);
-//       });
-//       await step('set state', async () => {
-//         await setSignedContext(contract, {
-//           data: [{ key: 'INIT', type: 'boolean', value: false }],
-//         });
-//       });
-//       await stepIgnoreErrorByMessage(
-//         'try to execute',
-//         'Error while executing dApp: _whenInitialized: revert',
-//         async () => {
-//           // eslint-disable-next-line prettier/prettier
-//           await execute();
-//         }
-//       );
-//     });
+  xdescribe('execute tests', function () {
+    // it('should throw when not initialized', async () => {
+    //   const contract = getContractByName('executor', this.parent?.ctx);
+    //   const techConract = getContractByName('technical', this.parent?.ctx);
+    //   await step('set multisig', async () => {
+    //     await setMultisig(techConract.dApp);
+    //   });
+    //   await step('set state', async () => {
+    //     await setSignedContext(contract, {
+    //       data: [{ key: 'INIT', type: 'boolean', value: false }],
+    //     });
+    //   });
+    //   await stepIgnoreErrorByMessage(
+    //     'try to execute',
+    //     'Error while executing dApp: _whenInitialized: revert',
+    //     async () => {
+    //       // eslint-disable-next-line prettier/prettier
+    //       await execute();
+    //     }
+    //   );
+    // });
 
-//     it('should throw when paused', async () => {});
+    it('should throw when paused', async () => {});
 
-//     it('should throw when wrong contract address', async () => {});
+    it('should throw when wrong contract address', async () => {});
 
-//     it('should throw when execution chainID end chain ID equals', async () => {});
+    it('should throw when execution chainID end chain ID equals', async () => {});
 
-//     it('should throw when wrong signature', async () => {});
+    it('should throw when wrong signature', async () => {});
 
-//     it('should throw when duplicate data', async () => {});
+    it('should throw when duplicate data', async () => {});
 
-//     it('simple positive', async () => {});
+    it('simple positive', async () => {});
 
-//     // TODO: check enough hash keccak256_32 (hash length)
-//   });
+    // TODO: check enough hash keccak256_32 (hash length)
+  });
 });
+
+function addByteArrays(
+  array1: Uint8Array,
+  array2: Uint8Array,
+  array3: Uint8Array
+): Uint8Array {
+  const result = new Uint8Array(array1.length + array2.length + array3.length);
+  result.set(array1, 0);
+  result.set(array2, array1.length);
+  result.set(array3, array1.length + array2.length);
+  return result;
+}

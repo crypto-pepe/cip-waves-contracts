@@ -249,7 +249,7 @@ func updateSigner(newSignerPublicKey_: String, oldSignature_: String, newSignatu
     let newData = # TODO: here we need more unique data (nonce maybe ???)
         "<<<PUBLIC--KEY--MIGRATION--CONFIRMED>>>".toBytes() +
         oldSignerPublicKey +
-        newSignerPublicKey_.toBytes()
+        newSignerPublicKey_.fromBase58String()
 
     strict err1 = 
         if !sigVerify_8Kb(oldData, fromBase58String(oldSignature_), oldSignerPublicKey) then

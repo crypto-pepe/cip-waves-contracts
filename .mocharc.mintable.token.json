@@ -1,0 +1,9 @@
+{
+    "diff": true,
+    "full-trace": true,
+    "timeout": 3600000,
+    "require": ["ts-node/register", "test/mintable.token/hooks.ts"],
+    "reporter": "mocha-multi-reporters",
+    "reporter-option": "configFile=reporterConfig.json",
+    "extension": ["ts"]
+  }

@@ -125,26 +125,40 @@ export const updateSigner = async (
   await sendTransaction(tx);
 };
 
-// export const execute = async (
-//   calledContract_: string,
-//   funcName_: string,
-//   funcArgs_: string[],
-//   calledChainID_: 
-//   caller_: Contract | Account,
-//   contract_: Contract = contract
-// ) => {
-//   const privateKey =
-//     typeof caller_.privateKey == 'string'
-//       ? { privateKey: caller_.privateKey }
-//       : caller_.privateKey;
-//   return await invoke(
-//     {
-//       dApp: contract_.dApp,
-//       call: {
-//         function: 'unpause',
-//       },
-//     },
-//     privateKey,
-//     env.network
-//   );
-// };
+export const execute = async (
+  calledContract_: string,
+  funcName_: string,
+  funcArgs_: any[],
+  calledChainID_: number,
+  executionChainId_: number,
+  nonce_: number,
+  txHash_: string,
+  signature_: string,
+  caller_: Contract | Account,
+  contract_: Contract = contract
+) => {
+  const privateKey =
+    typeof caller_.privateKey == 'string'
+      ? { privateKey: caller_.privateKey }
+      : caller_.privateKey;
+  return await invoke(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'execute',
+        args: [
+          { type: 'string', value: calledContract_ },
+          { type: 'string', value: funcName_ },
+          { type: 'list', value: funcArgs_ },
+          { type: 'integer', value: calledChainID_ },
+          { type: 'integer', value: executionChainId_ },
+          { type: 'integer', value: nonce_ },
+          { type: 'string', value: txHash_ },
+          { type: 'string', value: signature_ },
+        ],
+      },
+    },
+    privateKey,
+    env.network
+  );
+};

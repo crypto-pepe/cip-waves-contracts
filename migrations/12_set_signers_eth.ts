@@ -7,6 +7,7 @@ import {
   transfer,
 } from '@pepe-team/waves-sc-test-utils';
 import { address, seedWithNonce, keyPair } from '@waves/ts-lib-crypto';
+import { InvokeScriptCallStringArgument } from '@waves/ts-types';
 
 export default async function (
   deployerSeed: string,
@@ -23,13 +24,6 @@ export default async function (
   );
   console.log('Multisig contract address =', multisigAddress);
 
-  const tokenContract = keyPair(seedWithNonce(deployerSeed, 3));
-  const tokenContractAddress = address(
-    { publicKey: tokenContract.publicKey },
-    network.chainID
-  );
-  console.log('PCBT token contract address =', tokenContractAddress);
-
   const signerContract = keyPair(seedWithNonce(deployerSeed, 5));
   const signerContractAddress = address(
     { publicKey: signerContract.publicKey },
@@ -37,11 +31,9 @@ export default async function (
   );
   console.log('Signer contract address =', signerContractAddress);
 
-  // Deploy signerContract
-  const deployScriptFee = 2100000;
   await transfer(
     {
-      amount: deployScriptFee + 2 * network.invokeFee,
+      amount: network.invokeFee,
       recipient: signerContractAddress,
     },
     deployerPrivateKey,
@@ -51,61 +43,78 @@ export default async function (
     throw e;
   });
 
-  await deployScript(
-    path.resolve(process.cwd(), './ride/signer.ride'),
-    signerContract.privateKey,
-    network,
-    proofsGenerator,
-    deployScriptFee
-  ).catch((e) => {
-    throw e;
-  });
+  let execChainId;
+  let t;
+  switch (network.name) {
+    case 'mainnet':
+      execChainId = 2;
+      t = 3; // TODO: set
+      break;
+    case 'testnet':
+      execChainId = 10002;
+      t = 2;
+      break;
+    default:
+      execChainId = 10002;
+      t = 2;
+  }
+
+  let signers: InvokeScriptCallStringArgument[];
+  switch (network.name) {
+    case 'mainnet':
+      signers = []; // TODO
+      throw 'todo';
+      break;
+    case 'testnet':
+      signers = [
+        {
+          type: 'string',
+          value: 'E7XhXCJsKF5QunHiEWSaK2iX9mkknX9CkYs6dqXaKNS2',
+        },
+        {
+          type: 'string',
+          value: 'C275WnZ4VTH63ERxcL93TxhzruLWbGfM8GCpysZpfonh',
+        },
+        {
+          type: 'string',
+          value: '3Bva7Xeq3oeEUKgrUCR4CP3urgytwaT5U7WMcM8Z5WSA',
+        },
+      ];
+      break;
+    default:
+      signers = [
+        {
+          type: 'string',
+          value: 'E7XhXCJsKF5QunHiEWSaK2iX9mkknX9CkYs6dqXaKNS2',
+        },
+        {
+          type: 'string',
+          value: 'C275WnZ4VTH63ERxcL93TxhzruLWbGfM8GCpysZpfonh',
+        },
+        {
+          type: 'string',
+          value: '3Bva7Xeq3oeEUKgrUCR4CP3urgytwaT5U7WMcM8Z5WSA',
+        },
+      ];
+  }
 
   await invoke(
     {
       dApp: signerContractAddress,
       call: {
-        function: 'setMultisig',
-        args: [
-          {
-            type: 'string',
-            value: multisigAddress,
-          },
-        ],
-      },
-    },
-    signerContract.privateKey,
-    network,
-    proofsGenerator
-  ).catch((e) => {
-    throw e;
-  });
-
-  await invoke(
-    {
-      dApp: signerContractAddress,
-      call: {
-        function: 'init',
+        function: 'setActiveSigners',
         args: [
           {
             type: 'integer',
-            value: 10000000, // minSecDepo_
+            value: execChainId, // execChainId_
+          },
+          {
+            type: 'list',
+            value: signers, // signers_
           },
           {
             type: 'integer',
-            value: 10000000, // punishment_
-          },
-          {
-            type: 'integer',
-            value: 1440, // resetBlockDelta_
-          },
-          {
-            type: 'string',
-            value: tokenContractAddress, // rewardTokenAddress_
-          },
-          {
-            type: 'integer',
-            value: 200000, // rewardAmount_
+            value: t, // t_
           },
         ],
       },

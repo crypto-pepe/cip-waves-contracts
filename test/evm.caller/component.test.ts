@@ -8,7 +8,7 @@ import {
 import { step, stepIgnoreErrorByMessage } from 'relax-steps-allure';
 import { expect } from 'chai';
 import { getEnvironment } from 'relax-env-json';
-import { base58Encode } from '@waves/ts-lib-crypto';
+import { base16Encode, base58Decode, base58Encode } from '@waves/ts-lib-crypto';
 import {
   allow,
   call,
@@ -23,10 +23,6 @@ import {
 import { setSignedContext } from '../../steps/common';
 const env = getEnvironment();
 
-/**
- * BUG:   1) [MINOR] call(), have no caller address validation
- *        2) [MINOR] call(), nonce in event set after increment but need BEFORE
- */
 describe('EVM Caller component', function () {
   // REQUIRED: clear state
   xdescribe('before all special tests', async () => {
@@ -49,7 +45,8 @@ describe('EVM Caller component', function () {
   });
 
   describe('setMultisig tests', function () {
-    it('should throw when it is not self-call', async () => {
+    // Need a clear state
+    xit('should throw when it is not self-call', async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const startMultisig = await getDataValue(
@@ -1393,7 +1390,7 @@ describe('EVM Caller component', function () {
       });
     });
 
-    it('should throw when self-call (and contract mot in allowed list)', async () => {
+    it('should throw when self-call (and contract not in allowed list)', async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const techContract = getContractByName('technical', this.parent?.ctx);
       await step('set multisig', async () => {
@@ -1503,8 +1500,9 @@ describe('EVM Caller component', function () {
       });
       let tx: any;
       await step('call', async () => {
-        tx = await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(13, 'execution contract_', '', user);
       });
+      // console.info(await getDataValue(contract, 'EVENT__123', env.network));
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
         expect(
@@ -1517,7 +1515,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__123', env.network))
           // eslint-disable-next-line prettier/prettier
-          .is.contains(`0__0__${user.address}__execution contract___calldata__123__${tx.id}__`);
+          .is.contains(`0__13__execution contract___0x${likeEvmAddress(user.address)}__123__${base58Encode(tx.id)}__`);
       });
     });
 
@@ -1545,7 +1543,7 @@ describe('EVM Caller component', function () {
       });
       let tx: any;
       await step('call', async () => {
-        tx = await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(0, 'execution contract_', '0xabcd1234', user);
       });
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1554,11 +1552,12 @@ describe('EVM Caller component', function () {
         ).to.be.equal(124);
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__123', env.network))
+          //.to.be.equal(`0__0__execution contract___${likeEvmAddress(user.address)}abc123__321__${base58Encode(tx.id)}__0000`);
           // eslint-disable-next-line prettier/prettier
-          .is.contains(`0__0__${user.address}__execution contract___calldata__321__${tx.id}__`);
+          .is.contains(`0__0__execution contract___0xabcd1234${likeEvmAddress(user.address)}__321__${base58Encode(tx.id)}__`);
       });
       await step('call again with the same data', async () => {
-        tx = await call(0, 'execution contract_', 'calldata', user);
+        tx = await call(0, 'execution contract_', '0x4321dcbaff6613', user);
       });
       await step('check state again', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1572,7 +1571,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__124', env.network))
           // eslint-disable-next-line prettier/prettier
-          .is.contains(`0__0__${user.address}__execution contract___calldata__322__${tx.id}__`);
+          .is.contains(`0__0__execution contract___0x4321dcba${likeEvmAddress(user.address)}ff6613__322__${base58Encode(tx.id)}__`);
       });
     });
 
@@ -1602,7 +1601,7 @@ describe('EVM Caller component', function () {
       });
       let tx: any;
       await step('call', async () => {
-        tx = await selfCall(0, 'execution contract_', 'calldata');
+        tx = await selfCall(0, 'execution contract_', '0x11223344');
       });
       await step('check state', async () => {
         // eslint-disable-next-line prettier/prettier
@@ -1616,8 +1615,16 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__0', env.network))
           // eslint-disable-next-line prettier/prettier
-          .is.contains(`0__0__${contract.dApp}__execution contract___calldata__0__${tx.id}__`);
+          .is.contains(`0__0__execution contract___0x11223344${likeEvmAddress(contract.dApp)}__0__${base58Encode(tx.id)}__`);
       });
     });
   });
 });
+
+function likeEvmAddress(wavesAddress: string) {
+  let address = base16Encode(base58Decode(wavesAddress));
+  while (address.length < 64) {
+    address = '0' + address;
+  }
+  return address;
+}

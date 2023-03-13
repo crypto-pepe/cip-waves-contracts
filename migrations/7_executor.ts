@@ -91,10 +91,10 @@ export default async function (
       throw 'todo: set key';
       break;
     case 'testnet':
-      signerPublicKey = 'ARvSXQ37wBD5M6zRWQY86nw6Q7ATn9VXG1v8V5WriXBH';
+      signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';
       break;
     default:
-      signerPublicKey = 'ARvSXQ37wBD5M6zRWQY86nw6Q7ATn9VXG1v8V5WriXBH';
+      signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';
   }
 
   await invoke(

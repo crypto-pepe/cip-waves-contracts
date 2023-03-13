@@ -15,6 +15,8 @@ let KEY_EVENT = "EVENT"
 let KEY_NONCE = "NONCE"
 
 let MAX_INT = 9223372036854775807
+let SLOT_SIZE = 32
+let ZERO_SLOT = base16'0000000000000000000000000000000000000000000000000000000000000000'
 
 # ---------- Validation functions ----------
 
@@ -112,18 +114,17 @@ func _saveEventSize(index_: Int) = {
     [IntegerEntry(KEY_EVENT_SIZE, index_)]
 }
 
-func _saveEvent(index_: Int, event_: (Int, Int, Address, String, String, Int, String, Int)) = {
+func _saveEvent(index_: Int, event_: (Int, Int, String, String, Int, String, Int)) = {
     [StringEntry(
         makeString([KEY_EVENT, index_.toString()], SEPARATOR),
         makeString([
             event_._1.toString(),   # callChainId
             event_._2.toString(),   # executionChainId TODO add nonce
-            event_._3.toString(),   # caller
-            event_._4,              # executionContract
-            event_._5,              # calldata
-            event_._6.toString(),   # nonce
-            event_._7,              # txHash
-            event_._8.toString()    # blockNumber
+            event_._3,              # executionContract
+            event_._4,              # calldata
+            event_._5.toString(),   # nonce
+            event_._6,              # txHash
+            event_._7.toString()    # blockNumber
         ], SEPARATOR)
     )]
 }
@@ -195,6 +196,17 @@ func _whenAllowed(caller_: Address) = {
     else true  
 }
 
+# ---------- Calldata functions ----------
+
+func _alignRight(val_: ByteVector) = {
+    ZERO_SLOT.take(SLOT_SIZE - size(val_)) + val_
+}
+
+func _addArg(calldata_: String, arg_: ByteVector) = {
+    let calldata = calldata_.drop(2).fromBase16String()
+    "0x" + (calldata.take(4) + arg_._alignRight() + calldata.drop(4)).toBase16String()
+}
+
 # ---------- Public callable functions ----------
 
 @Callable(i)
@@ -226,9 +238,8 @@ func call(executionChainId_: Int, executionContract_: String, calldata_: String)
     let event = (
         _loadCallChainId(),                 # callChainId
         executionChainId_,                  # executionChainId
-        i.caller,                           # caller
         executionContract_,                 # executionContract
-        calldata_,                          # calldata
+        calldata_._addArg(i.caller.bytes),  # calldata
         nonce,                              # nonce
         i.transactionId.toBase58String(),   # txHash
         height                              # blockNumber

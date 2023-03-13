@@ -1,9 +1,4 @@
-import {
-  base58Decode,
-  base58Encode,
-  keccak,
-  TPrivateKey,
-} from '@waves/ts-lib-crypto';
+import { base58Encode, TPrivateKey } from '@waves/ts-lib-crypto';
 import {
   Account,
   Asset,

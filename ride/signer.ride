@@ -198,7 +198,7 @@ func _loadSigners(execChainId_: Int, epoch_: Int) = {
     match getString(
         makeString([KEY_SIGNERS_PER_EPOCH, execChainId_.toString(), epoch_.toString()], SEPARATOR)
     ) {
-        case a:String => split(a, SEPARATOR)
+        case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
         case _ => []
     }
 }
@@ -210,17 +210,17 @@ func _saveSigners(execChainId_: Int, epoch_: Int, signers_: List[String]) = {
     )]
 }
 
-func _loadEventStatus(eventId_: Int) = {
+func _loadEventStatus(execChainId_: Int, eventId_: Int) = {
     match getInteger(
-        makeString([KEY_EVENT_STATUS, eventId_.toString()], SEPARATOR)
+        makeString([KEY_EVENT_STATUS, execChainId_.toString(), eventId_.toString()], SEPARATOR)
     ) {
         case a:Int => a
         case _ => EVENT_STATUS_INIT
     }
 }
 
-func _saveEventStatus(eventId_: Int, status_: Int) = {
-    [IntegerEntry(makeString([KEY_EVENT_STATUS, eventId_.toString()], SEPARATOR), status_)]
+func _saveEventStatus(execChainId_: Int, eventId_: Int, status_: Int) = {
+    [IntegerEntry(makeString([KEY_EVENT_STATUS, execChainId_.toString(), eventId_.toString()], SEPARATOR), status_)]
 }
 
 func _loadLock(publicKey_: String) = {
@@ -247,119 +247,119 @@ func _saveT(execChainId_: Int, epoch_: Int, val_: Int) = {
     [IntegerEntry(makeString([KEY_T, execChainId_.toString(), epoch_.toString()], SEPARATOR), val_)]
 }
 
-func _loadRsByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_R, eventId_.toString()], SEPARATOR)) {
-        case a:String => a.split(SEPARATOR)
+func _loadRsByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_R, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
+        case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
         case _ => []
     }
 }
 
-func _saveRsByEvent(eventId_: Int, rs_: List[String]) = {
+func _saveRsByEvent(execChainId_: Int, eventId_: Int, rs_: List[String]) = {
     [StringEntry(
-        makeString([KEY_R, eventId_.toString()], SEPARATOR),
+        makeString([KEY_R, execChainId_.toString(), eventId_.toString()], SEPARATOR),
         makeString(rs_, SEPARATOR)
     )]
 }
 
-func _loadSsByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_S, eventId_.toString()], SEPARATOR)) {
-        case a:String => a.split(SEPARATOR)
+func _loadSsByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_S, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
+        case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
         case _ => []
     }
 }
 
-func _saveSsByEvent(eventId_: Int, ss_: List[String]) = {
+func _saveSsByEvent(execChainId_: Int, eventId_: Int, ss_: List[String]) = {
     [StringEntry(
-        makeString([KEY_S, eventId_.toString()], SEPARATOR),
+        makeString([KEY_S, execChainId_.toString(), eventId_.toString()], SEPARATOR),
         makeString(ss_, SEPARATOR)
     )]
 }
 
-func _loadRSigmaByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_R_SIGMA, eventId_.toString()], SEPARATOR)) {
+func _loadRSigmaByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_R_SIGMA, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
         case a:String => a
         case _ => ""
     }
 }
 
-func _saveRSigmaByEvent(eventId_: Int, rSigma_: String) = {
-    [StringEntry(makeString([KEY_R_SIGMA, eventId_.toString()], SEPARATOR), rSigma_)]
+func _saveRSigmaByEvent(execChainId_: Int, eventId_: Int, rSigma_: String) = {
+    [StringEntry(makeString([KEY_R_SIGMA, execChainId_.toString(), eventId_.toString()], SEPARATOR), rSigma_)]
 }
 
-func _loadSSigmaByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_S_SIGMA, eventId_.toString()], SEPARATOR)) {
+func _loadSSigmaByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_S_SIGMA, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
         case a:String => a
         case _ => ""
     }
 }
 
-func _saveSSigmaByEvent(eventId_: Int, sSigma_: String) = {
-    [StringEntry(makeString([KEY_S_SIGMA, eventId_.toString()], SEPARATOR), sSigma_)]
+func _saveSSigmaByEvent(execChainId_: Int, eventId_: Int, sSigma_: String) = {
+    [StringEntry(makeString([KEY_S_SIGMA, execChainId_.toString(), eventId_.toString()], SEPARATOR), sSigma_)]
 }
 
-func _loadRByEventAndSigner(eventId_: Int, signer_: String) = {
+func _loadRByEventAndSigner(execChainId_: Int, eventId_: Int, signer_: String) = {
     match getString(
-        makeString([KEY_R, eventId_.toString(), signer_], SEPARATOR)
+        makeString([KEY_R, execChainId_.toString(), eventId_.toString(), signer_], SEPARATOR)
     ) {
         case a:String => a
         case _ => ""
     }
 }
 
-func _saveRByEventAndSigner(eventId_: Int, signer_: String, r_: String) = {
-    [StringEntry(makeString([KEY_R, eventId_.toString(), signer_], SEPARATOR), r_)]
+func _saveRByEventAndSigner(execChainId_: Int, eventId_: Int, signer_: String, r_: String) = {
+    [StringEntry(makeString([KEY_R, execChainId_.toString(), eventId_.toString(), signer_], SEPARATOR), r_)]
 }
 
-func _loadSByEventAndSigner(eventId_: Int, signer_: String) = {
+func _loadSByEventAndSigner(execChainId_: Int, eventId_: Int, signer_: String) = {
     match getString(
-        makeString([KEY_S, eventId_.toString(), signer_], SEPARATOR)
+        makeString([KEY_S, execChainId_.toString(), eventId_.toString(), signer_], SEPARATOR)
     ) {
         case a:String => a
         case _ => ""
     }
 }
 
-func _saveSByEventAndSigner(eventId_: Int, signer_: String, s_: String) = {
-    [StringEntry(makeString([KEY_S, eventId_.toString(), signer_], SEPARATOR), s_)]
+func _saveSByEventAndSigner(execChainId_: Int, eventId_: Int, signer_: String, s_: String) = {
+    [StringEntry(makeString([KEY_S, execChainId_.toString(), eventId_.toString(), signer_], SEPARATOR), s_)]
 }
 
-func _loadSignersWithRByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_R_SIGNERS, eventId_.toString()], SEPARATOR)) {
-        case a:String => a.split(SEPARATOR)
+func _loadSignersWithRByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_R_SIGNERS, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
+        case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
         case _ => []
     }
 }
 
-func _saveSignersWithRByEvent(eventId_: Int, rs_: List[String]) = {
+func _saveSignersWithRByEvent(execChainId_: Int, eventId_: Int, rs_: List[String]) = {
     [StringEntry(
-        makeString([KEY_R_SIGNERS, eventId_.toString()], SEPARATOR),
+        makeString([KEY_R_SIGNERS, execChainId_.toString(), eventId_.toString()], SEPARATOR),
         makeString(rs_, SEPARATOR)
     )]
 }
 
-func _loadSignersWithSByEvent(eventId_: Int) = {
-    match getString(makeString([KEY_S_SIGNERS, eventId_.toString()], SEPARATOR)) {
-        case a:String => a.split(SEPARATOR)
+func _loadSignersWithSByEvent(execChainId_: Int, eventId_: Int) = {
+    match getString(makeString([KEY_S_SIGNERS, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
+        case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
         case _ => []
     }
 }
 
-func _saveSignersWithSByEvent(eventId_: Int, ss_: List[String]) = {
+func _saveSignersWithSByEvent(execChainId_: Int, eventId_: Int, ss_: List[String]) = {
     [StringEntry(
-        makeString([KEY_S_SIGNERS, eventId_.toString()], SEPARATOR),
+        makeString([KEY_S_SIGNERS, execChainId_.toString(), eventId_.toString()], SEPARATOR),
         makeString(ss_, SEPARATOR)
     )]
 }
 
-func _loadEventStartBlock(eventId_: Int) = {
-    match getInteger(makeString([KEY_EVENT_START_BLOCK, eventId_.toString()], SEPARATOR)) {
+func _loadEventStartBlock(execChainId_: Int, eventId_: Int) = {
+    match getInteger(makeString([KEY_EVENT_START_BLOCK, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
         case a:Int => a
         case _ => 0
     }
 }
 
-func _saveEventStartBlock(eventId_: Int, val_: Int) = {
-    [IntegerEntry(makeString([KEY_EVENT_START_BLOCK, eventId_.toString()], SEPARATOR), val_)]
+func _saveEventStartBlock(execChainId_: Int, eventId_: Int, val_: Int) = {
+    [IntegerEntry(makeString([KEY_EVENT_START_BLOCK, execChainId_.toString(), eventId_.toString()], SEPARATOR), val_)]
 }
 
 func _loadSignedEventExecutorIdxSize(executionChainId_: Int) = {
@@ -426,21 +426,21 @@ func _checkSecDepo(signer_: String, err_: String) = {
     else true
 }
 
-func _checkEventStatusForSubmitR(eventId_: Int, err_: String) = {
-    if _loadEventStatus(eventId_) != EVENT_STATUS_INIT then
+func _checkEventStatusForSubmitR(execChainId_: Int, eventId_: Int, err_: String) = {
+    if _loadEventStatus(execChainId_, eventId_) != EVENT_STATUS_INIT then
         throw(err_)
     else true
 }
 
-func _checkEventStatusForSubmitS(eventId_: Int, err_: String) = {
-    if _loadEventStatus(eventId_) != EVENT_STATUS_SIGN then
+func _checkEventStatusForSubmitS(execChainId_: Int, eventId_: Int, err_: String) = {
+    if _loadEventStatus(execChainId_, eventId_) != EVENT_STATUS_SIGN then
         throw(err_)
     else true
 }
 
-func _checkEventStatusForReset(eventId_: Int, err_: String) = {
-    if _loadEventStatus(eventId_) != EVENT_STATUS_SIGN ||
-        _loadEventStartBlock(eventId_) + _loadResetBlockDelta() <= height then
+func _checkEventStatusForReset(execChainId_: Int, eventId_: Int, err_: String) = {
+    if _loadEventStatus(execChainId_, eventId_) != EVENT_STATUS_SIGN ||
+        _loadEventStartBlock(execChainId_, eventId_) + _loadResetBlockDelta() > height then
         throw(err_)
     else true
 }
@@ -459,23 +459,26 @@ func _isZeroLock(publicKey_: String, err_: String) = {
     else true
 }
 
-func _notSubmittedR(eventId_: Int, signer_: String, err_: String) = {
-    if _loadRByEventAndSigner(eventId_, signer_) != "" then
+func _notSubmittedR(execChainId_: Int, eventId_: Int, signer_: String, err_: String) = {
+    let r = _loadRByEventAndSigner(execChainId_, eventId_, signer_)
+
+    if r != "" && _loadRsByEvent(execChainId_, eventId_).containsElement(r) then
         throw(err_)
     else true
 }
 
-func _notSubmittedS(eventId_: Int, signer_: String, err_: String) = {
-    if _loadSByEventAndSigner(eventId_, signer_) != "" then
+func _notSubmittedS(execChainId_: Int, eventId_: Int, signer_: String, err_: String) = {
+    let s = _loadSByEventAndSigner(execChainId_, eventId_, signer_)
+
+    if s != "" && _loadSsByEvent(execChainId_, eventId_).containsElement(s) then
         throw(err_)
     else true
 }
 
-func _submittedR(eventId_: Int, signer_: String, err_: String) = {
-    let r = _loadRByEventAndSigner(eventId_, signer_)
-    if r == "" then
-        throw(err_)
-    else if !_loadRsByEvent(eventId_).containsElement(r) then
+func _submittedR(execChainId_: Int, eventId_: Int, signer_: String, err_: String) = {
+    let r = _loadRByEventAndSigner(execChainId_, eventId_, signer_)
+
+    if r == "" || !_loadRsByEvent(execChainId_, eventId_).containsElement(r) then
         throw(err_)
     else true
 }
@@ -574,21 +577,21 @@ func submitR(eventId_: Int, execChainId_: Int, r_: String) = {
         _validateString(r_, "submitR: invalid r") &&
         _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitR: not active") &&
         _checkSecDepo(callerPublicKey, "submitR: not enough security deposit") &&
-        _checkEventStatusForSubmitR(eventId_, "submitR: invalid event status") &&
-        _notSubmittedR(eventId_, callerPublicKey, "submitR: already submitted")
+        _checkEventStatusForSubmitR(execChainId_, eventId_, "submitR: invalid event status") &&
+        _notSubmittedR(execChainId_, eventId_, callerPublicKey, "submitR: already submitted")
 
-    let rArray = _loadRsByEvent(eventId_)
-    let signersArray = _loadSignersWithRByEvent(eventId_)
+    let rArray = _loadRsByEvent(execChainId_, eventId_)
+    let signersArray = _loadSignersWithRByEvent(execChainId_, eventId_)
     let eventStatusActions =
         if rArray.size() + 1 == t then
-            _saveEventStatus(eventId_, EVENT_STATUS_SIGN) ++
-            _saveEventStartBlock(eventId_, height)
+            _saveEventStatus(execChainId_, eventId_, EVENT_STATUS_SIGN) ++
+            _saveEventStartBlock(execChainId_, eventId_, height)
         else []
 
     (
-        _saveRsByEvent(eventId_, rArray :+ r_) ++
-        _saveRByEventAndSigner(eventId_, callerPublicKey, r_) ++
-        _saveSignersWithRByEvent(eventId_, signersArray :+ callerPublicKey) ++
+        _saveRsByEvent(execChainId_, eventId_, rArray :+ r_) ++
+        _saveRByEventAndSigner(execChainId_, eventId_, callerPublicKey, r_) ++
+        _saveSignersWithRByEvent(execChainId_, eventId_, signersArray :+ callerPublicKey) ++
         eventStatusActions,
         unit
     )
@@ -608,31 +611,31 @@ func submitS(eventId_: Int, execChainId_: Int, rSigma_: String, s_: String, sSig
         _validateString(s_, "submitS: invalid s") &&
         _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitS: not active") &&
         _checkSecDepo(callerPublicKey, "submitS: not enough security deposit") &&
-        _checkEventStatusForSubmitS(eventId_, "submitS: invalid event status") &&
-        _notSubmittedS(eventId_, callerPublicKey, "submitS: already submitted") &&
-        _submittedR(eventId_, callerPublicKey, "submitS: R is not submitted")
+        _checkEventStatusForSubmitS(execChainId_, eventId_, "submitS: invalid event status") &&
+        _notSubmittedS(execChainId_, eventId_, callerPublicKey, "submitS: already submitted") &&
+        _submittedR(execChainId_, eventId_, callerPublicKey, "submitS: R is not submitted")
 
-    let sArray = _loadSsByEvent(eventId_)
-    let signersArray = _loadSignersWithSByEvent(eventId_)
+    let sArray = _loadSsByEvent(execChainId_, eventId_)
+    let signersArray = _loadSignersWithSByEvent(execChainId_, eventId_)
     let eventStatusActions =
         if sArray.size() + 1 == t then
             strict err1 = _validateString(sSigma_, "submitS: invalid s sigma")
 
             let executorIdxSize = _loadSignedEventExecutorIdxSize(execChainId_)
             let rewardAddresses = _publicKeysToAddrsStr(signersArray :+ callerPublicKey)
-            strict witnessesRewards = invoke(_loadRewardTokenAddress(), FUNC_MINT_MANY, [_loadRewardAmount(), rewardAddresses], [])
+            strict signersRewards = invoke(_loadRewardTokenAddress(), FUNC_MINT_MANY, [_loadRewardAmount(), rewardAddresses], [])
 
-            _saveEventStatus(eventId_, EVENT_STATUS_DONE) ++
+            _saveEventStatus(execChainId_, eventId_, EVENT_STATUS_DONE) ++
             _saveSignedEventExecutorIdx(execChainId_, executorIdxSize, eventId_) ++
             _saveSignedEventExecutorIdxSize(execChainId_, executorIdxSize + 1) ++
-            _saveSSigmaByEvent(eventId_, sSigma_)
+            _saveSSigmaByEvent(execChainId_, eventId_, sSigma_)
         else []
 
     (
-        _saveSsByEvent(eventId_, sArray :+ s_) ++
-        _saveSByEventAndSigner(eventId_, callerPublicKey, s_) ++
-        _saveSignersWithSByEvent(eventId_, signersArray :+ callerPublicKey) ++
-        _saveRSigmaByEvent(eventId_, rSigma_) ++
+        _saveSsByEvent(execChainId_, eventId_, sArray :+ s_) ++
+        _saveSByEventAndSigner(execChainId_, eventId_, callerPublicKey, s_) ++
+        _saveSignersWithSByEvent(execChainId_, eventId_, signersArray :+ callerPublicKey) ++
+        _saveRSigmaByEvent(execChainId_, eventId_, rSigma_) ++
         eventStatusActions,
         unit
     )
@@ -650,11 +653,11 @@ func reset(eventId_: Int, execChainId_: Int, r_: String) = {
         _validateString(r_, "reset: invalid r") &&
         _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "reset: not active") &&
         _checkSecDepo(callerPublicKey, "reset: not enough security deposit") &&
-        _checkEventStatusForReset(eventId_, "reset: invalid event status")
+        _checkEventStatusForReset(execChainId_, eventId_, "reset: invalid event status")
 
     let slashAmount = 0
-    let signersWithR = _loadSignersWithRByEvent(eventId_)
-    let signersWithS = _loadSignersWithSByEvent(eventId_)
+    let signersWithR = _loadSignersWithRByEvent(execChainId_, eventId_)
+    let signersWithS = _loadSignersWithSByEvent(execChainId_, eventId_)
     let result = _slashIncorrect(signersWithR, signersWithS)
     let slashingActions = result._1
     let compensatedSigners = result._2
@@ -662,12 +665,14 @@ func reset(eventId_: Int, execChainId_: Int, r_: String) = {
     let compensationActions = _compensateCorrect(compensatedSigners, compensation)
 
     (
-        _saveRsByEvent(eventId_, [r_]) ++
-        _saveRByEventAndSigner(eventId_, callerPublicKey, r_) ++
-        _saveSignersWithRByEvent(eventId_, [callerPublicKey]) ++
-        _saveRSigmaByEvent(eventId_, "") ++
-        _saveSSigmaByEvent(eventId_, "") ++
-        _saveEventStatus(eventId_, EVENT_STATUS_INIT) ++
+        _saveEventStatus(execChainId_, eventId_, EVENT_STATUS_INIT) ++
+        _saveRsByEvent(execChainId_, eventId_, [r_]) ++
+        _saveRByEventAndSigner(execChainId_, eventId_, callerPublicKey, r_) ++
+        _saveSignersWithRByEvent(execChainId_, eventId_, [callerPublicKey]) ++
+        _saveRSigmaByEvent(execChainId_, eventId_, "") ++
+        _saveSsByEvent(execChainId_, eventId_, []) ++
+        _saveSignersWithSByEvent(execChainId_, eventId_, []) ++
+        _saveSSigmaByEvent(execChainId_, eventId_, "") ++
         slashingActions ++
         compensationActions,
         unit

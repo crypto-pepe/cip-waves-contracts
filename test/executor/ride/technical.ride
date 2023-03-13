@@ -30,6 +30,16 @@ func setMultisigParams(
     )
 }
 
+@Callable(i)
+func call() = {
+    (
+        [
+            StringEntry("CONTRACT_NAME", toBase58String(i.caller.bytes)),
+            IntegerEntry("CALL_HEIGHT", height)
+        ], unit
+    )
+}
+
 @Verifier(tx)
 func verify() = {
     sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

@@ -75,7 +75,7 @@ describe('Mintable token component', function () {
 
   describe('setMultisig tests', function () {
     // Need a clear state
-    it('should throw when it is not self-call', async () => {
+    xit('should throw when it is not self-call', async () => {
       const contract = getContractByName('mintable_token', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const startMultisig = await getDataValue(

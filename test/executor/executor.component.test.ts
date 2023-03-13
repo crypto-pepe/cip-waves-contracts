@@ -3,11 +3,13 @@ import {
   getContractByName,
   getDataValue,
   invoke,
+  setContractState,
 } from '@pepe-team/waves-sc-test-utils';
 import { step, stepIgnoreErrorByMessage } from 'relax-steps-allure';
 import { expect } from 'chai';
 import { getEnvironment } from 'relax-env-json';
 import {
+  execute,
   init,
   pause,
   setMultisig,
@@ -16,9 +18,10 @@ import {
   updateSigner,
 } from '../../steps/executor';
 import {
-  base16Encode,
   base58Decode,
   base58Encode,
+  keccak,
+  random,
   signBytes,
   stringToBytes,
 } from '@waves/ts-lib-crypto';
@@ -29,6 +32,8 @@ const OLD_PREFIX = '<<<PUBLIC--KEY--MIGRATION--ALLOWED>>>';
 const NEW_PREFIX = '<<<PUBLIC--KEY--MIGRATION--CONFIRMED>>>';
 
 /**
+ * TODO:    1) CHECK execute() keccak256_32kb for too long string args (stress tests)
+ * 
  * MEMO:    1) when we deploy contract we MUST call setMultisig AND init AND CHECK STATE!
  */
 describe('Executor component', function () {
@@ -1162,41 +1167,414 @@ describe('Executor component', function () {
     });
   });
 
-  xdescribe('execute tests', function () {
-    // it('should throw when not initialized', async () => {
-    //   const contract = getContractByName('executor', this.parent?.ctx);
-    //   const techConract = getContractByName('technical', this.parent?.ctx);
-    //   await step('set multisig', async () => {
-    //     await setMultisig(techConract.dApp);
-    //   });
-    //   await step('set state', async () => {
-    //     await setSignedContext(contract, {
-    //       data: [{ key: 'INIT', type: 'boolean', value: false }],
-    //     });
-    //   });
-    //   await stepIgnoreErrorByMessage(
-    //     'try to execute',
-    //     'Error while executing dApp: _whenInitialized: revert',
-    //     async () => {
-    //       // eslint-disable-next-line prettier/prettier
-    //       await execute();
-    //     }
-    //   );
-    // });
+  describe('execute tests', function () {
+    it('should throw when not initialized', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const txHash = random(32, 'Uint8Array');
+      const execChainId = 121;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+            { key: 'SIGNER_PUBLIC_KEY', type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: _whenInitialized: revert',
+        async () => {
+          await execute(
+            'calledContract',
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            base58Encode(txHash), // tx hash
+            'signaturte',
+            user
+          );
+        }
+      );
+    });
 
-    it('should throw when paused', async () => {});
+    it('should throw when paused', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const txHash = random(32, 'Uint8Array');
+      const execChainId = 122;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: true },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: _whenNotPaused: revert',
+        async () => {
+          await execute(
+            'calledContract',
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            base58Encode(txHash), // tx hash
+            'signature',
+            user
+          );
+        }
+      );
+    });
 
-    it('should throw when wrong contract address', async () => {});
+    it('should throw when wrong contract address', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const txHash = random(32, 'Uint8Array');
+      const execChainId = 123;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: invalid contract',
+        async () => {
+          await execute(
+            'calledContract',
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            base58Encode(txHash),
+            'signature',
+            user
+          );
+        }
+      );
+    });
 
-    it('should throw when execution chainID end chain ID equals', async () => {});
+    it('should throw when execution chainID and chain ID equals', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const txHash = random(32, 'Uint8Array');
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: invalid execution chain id',
+        async () => {
+          await execute(
+            techConract.dApp,
+            'funcName',
+            [],
+            0, //called chain ID
+            1366, // execution chain ID
+            0, // nonce,
+            base58Encode(txHash), // tx hash
+            'signature',
+            user
+          );
+        }
+      );
+    });
 
-    it('should throw when wrong signature', async () => {});
+    it('should throw when wrong signature', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const execChainId = 124;
+      const txHash = base58Encode(random(32, 'Uint8Array'));
+      const dataHash = keccak(
+        addManyByteArrays([
+          numToUint8Array(0), // caller chain
+          numToUint8Array(execChainId), // execution chain
+          numToUint8Array(0), // nonce
+          stringToBytes(txHash),
+          base58Decode(techConract.dApp), // contract
+          stringToBytes('funcName'), // func name
+          new Uint8Array(0), // args
+        ])
+      );
+      const wrongDataHash = keccak(
+        addManyByteArrays([
+          numToUint8Array(0), // caller chain
+          numToUint8Array(execChainId), // execution chain
+          numToUint8Array(0), // nonce
+          stringToBytes(txHash),
+          base58Decode(techConract.dApp), // contract
+          stringToBytes('wrongFuncName'), // func name
+          new Uint8Array(0), // args
+        ])
+      );
+      // eslint-disable-next-line prettier/prettier
+      const sign = signBytes({ privateKey: techConract.privateKey }, wrongDataHash);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'SIGNER_PUBLIC_KEY', type: 'string', value: techConract.publicKey },
+            // eslint-disable-next-line prettier/prettier
+            { key: `DATA_HASH__${base58Encode(dataHash)}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: invalid signature',
+        async () => {
+          await execute(
+            techConract.dApp,
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            txHash, // tx hash
+            sign,
+            techConract
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `DATA_HASH__${base58Encode(dataHash)}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
 
-    it('should throw when duplicate data', async () => {});
+    it('should throw when wrong signer', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const execChainId = 125;
+      const txHash = base58Encode(random(32, 'Uint8Array'));
+      const dataHash = keccak(
+        addManyByteArrays([
+          numToUint8Array(0), // caller chain
+          numToUint8Array(execChainId), // execution chain
+          numToUint8Array(0), // nonce
+          stringToBytes(txHash),
+          base58Decode(techConract.dApp), // contract
+          stringToBytes('funcName'), // func name
+          new Uint8Array(0), // args
+        ])
+      );
+      const sign = signBytes({ privateKey: techConract.privateKey }, dataHash);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'SIGNER_PUBLIC_KEY', type: 'string', value: user.publicKey },
+            // eslint-disable-next-line prettier/prettier
+            { key: `DATA_HASH__${base58Encode(dataHash)}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: invalid signature',
+        async () => {
+          await execute(
+            techConract.dApp,
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            txHash, // tx hash
+            sign,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `DATA_HASH__${base58Encode(dataHash)}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
 
-    it('simple positive', async () => {});
+    it('should throw when duplicate data', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const execChainId = 126;
+      const txHash = base58Encode(random(32, 'Uint8Array'));
+      const rawData = addManyByteArrays([
+        numToUint8Array(0), // caller chain
+        numToUint8Array(execChainId), // execution chain
+        numToUint8Array(0), // nonce
+        stringToBytes(txHash),
+        base58Decode(techConract.dApp), // contract
+        stringToBytes('funcName'), // func name
+        new Uint8Array(0), // args
+      ]);
+      const dataHash = keccak(rawData);
+      const sign = signBytes(user.privateKey, dataHash);
+      const pseudoHeight = 6613;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'SIGNER_PUBLIC_KEY', type: 'string', value: user.publicKey },
+            // eslint-disable-next-line prettier/prettier
+            { key: `DATA_HASH__${base58Encode(dataHash)}`, type: 'integer', value: pseudoHeight },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: duplicate data',
+        async () => {
+          await execute(
+            techConract.dApp,
+            'funcName',
+            [],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            txHash, // tx hash
+            sign,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `DATA_HASH__${base58Encode(dataHash)}`, env.network)
+        ).to.be.equal(pseudoHeight);
+      });
+    });
 
-    // TODO: check enough hash keccak256_32 (hash length)
+    it('simple positive', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const execChainId = 300;
+      const mockCallerFunc = 'call';
+      const txHash = base58Encode(random(32, 'Uint8Array'));
+      const rawData = addManyByteArrays([
+        numToUint8Array(0), // caller chain
+        numToUint8Array(execChainId), // execution chain
+        numToUint8Array(0), // nonce
+        stringToBytes(txHash),
+        base58Decode(techConract.dApp), // contract
+        stringToBytes(mockCallerFunc), // func name
+        new Uint8Array(0), // args
+      ]);
+      const dataHash = keccak(rawData);
+      const sign = signBytes(user.privateKey, dataHash);
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setContractState(
+          {
+            data: [
+              { key: 'CONTRACT_NAME', type: 'string', value: '' },
+              { key: 'CALL_HEIGHT', type: 'integer', value: 0 },
+            ],
+          },
+          user.privateKey,
+          env.network
+        );
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'SIGNER_PUBLIC_KEY', type: 'string', value: user.publicKey },
+            // eslint-disable-next-line prettier/prettier
+            { key: `DATA_HASH__${base58Encode(dataHash)}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('execute', async () => {
+        await execute(
+          techConract.dApp,
+          mockCallerFunc,
+          [],
+          0, //called chain ID
+          execChainId, // execution chain ID
+          0, // nonce,
+          txHash, // tx hash
+          sign,
+          user
+        );
+      });
+      await step('check state', async () => {
+        // MOCK STATE
+        expect(
+          await getDataValue(techConract, 'CONTRACT_NAME', env.network)
+        ).to.be.equal(contract.dApp);
+        // eslint-disable-next-line prettier/prettier
+        const height = await getDataValue(techConract, 'CALL_HEIGHT', env.network);
+        expect(height).is.not.equal(0);
+        // EXECUTOR STATE
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `DATA_HASH__${base58Encode(dataHash)}`, env.network)
+        ).to.be.equal(height);
+      });
+    });
   });
 });
 
@@ -1210,4 +1588,28 @@ function addByteArrays(
   result.set(array2, array1.length);
   result.set(array3, array1.length + array2.length);
   return result;
+}
+
+function addManyByteArrays(array: Uint8Array[]): Uint8Array {
+  let length = 0;
+  array.map((e) => {
+    length = length + e.length;
+  });
+  const result = new Uint8Array(length);
+  let shift = 0;
+  for (let i = 0; i < array.length; i++) {
+    result.set(array[i], shift);
+    shift = shift + array[i].length;
+  }
+  return result;
+}
+
+function numToUint8Array(num: number) {
+  let arr = new Uint8Array(8);
+  for (let i = 7; i >= 0; i--) {
+    arr[i] = num % 256;
+    num = Math.floor(num / 256);
+  }
+  // console.info(arr);
+  return arr;
 }

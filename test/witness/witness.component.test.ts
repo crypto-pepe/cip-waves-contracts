@@ -13,9 +13,11 @@ import {
   addProxySecurityDeposit,
   defaultAmt,
   init,
+  publishEvmEventStatus,
   publishWavesEventStatus,
   setActiveWitnesses,
   setMultisig,
+  submitEvmCallEvent,
   submitWavesCallEvent,
   subProxySecurityDeposit,
 } from '../../steps/witness';
@@ -41,7 +43,7 @@ describe('Witness component', function () {
   /**
    * REQUIRED: clear state
    */
-  xdescribe('before all special tests', async () => {
+  describe('before all special tests', async () => {
     it('[init] should throw when multisig not set', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       // eslint-disable-next-line prettier/prettier
@@ -1075,7 +1077,6 @@ describe('Witness component', function () {
             -1,
             -2,
             123,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1123,7 +1124,6 @@ describe('Witness component', function () {
             '9223372036854775808',
             -2,
             123,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1171,7 +1171,6 @@ describe('Witness component', function () {
             0,
             -1,
             123,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1219,7 +1218,6 @@ describe('Witness component', function () {
             0,
             '9223372036854775808',
             123,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1267,7 +1265,6 @@ describe('Witness component', function () {
             0,
             0,
             -1,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1315,58 +1312,10 @@ describe('Witness component', function () {
             0,
             0,
             '9223372036854775808',
-            'caller',
             'execution contract',
             'function name',
             [],
             'txHash106',
-            1366,
-            user
-          );
-        }
-      );
-      await step('check state', async () => {
-        expect(
-          // eslint-disable-next-line prettier/prettier
-          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
-        ).to.be.equal(availBalance);
-      });
-    });
-
-    it('should throw when caller is empty', async () => {
-      const contract = getContractByName('witness', this.parent?.ctx);
-      const techConract = getContractByName('technical', this.parent?.ctx);
-      const user = getAccountByName('neo', this.parent?.ctx);
-      const availBalance = 1000000000;
-      const eventDepo = 100000000;
-      await step('set multisig', async () => {
-        await setMultisig(techConract.dApp);
-      });
-      await step('set state', async () => {
-        await setSignedContext(contract, {
-          data: [
-            { key: 'INIT', type: 'boolean', value: true },
-            // eslint-disable-next-line prettier/prettier
-            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
-            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 107 },
-            // eslint-disable-next-line prettier/prettier
-            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
-          ],
-        });
-      });
-      await stepIgnoreErrorByMessage(
-        'try to submit WavesCall event',
-        'Error while executing dApp: submitWavesCallEvent: invalid caller',
-        async () => {
-          await submitWavesCallEvent(
-            0,
-            0,
-            0,
-            '',
-            'execution contract',
-            'function name',
-            [],
-            'txHash107',
             1366,
             user
           );
@@ -1409,7 +1358,6 @@ describe('Witness component', function () {
             0,
             0,
             0,
-            'caller',
             '',
             'function name',
             [],
@@ -1456,7 +1404,6 @@ describe('Witness component', function () {
             0,
             0,
             0,
-            'caller',
             'execution contract',
             '',
             [],
@@ -1503,7 +1450,6 @@ describe('Witness component', function () {
             0,
             0,
             0,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1551,7 +1497,6 @@ describe('Witness component', function () {
             0,
             0,
             0,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1599,7 +1544,6 @@ describe('Witness component', function () {
             0,
             0,
             0,
-            'caller',
             'execution contract',
             'function name',
             [],
@@ -1629,7 +1573,6 @@ describe('Witness component', function () {
             new Uint8Array(8), // RIDE Int 0
             new Uint8Array(8),
             new Uint8Array(8),
-            stringToBytes('caller'),
             stringToBytes('executionContract'),
             stringToBytes('functionName'),
             stringToBytes(''),
@@ -1659,7 +1602,6 @@ describe('Witness component', function () {
           0,
           0,
           0,
-          'caller',
           'executionContract',
           'functionName',
           [],
@@ -1676,7 +1618,7 @@ describe('Witness component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'WAVES_EVENT__0', env.network))
           // eslint-disable-next-line prettier/prettier
-          .to.be.equal(`0__0__0__caller__executionContract__functionName____txHash__0__${hash}__0__0__${eventDepo}__${user.address}`);
+          .to.be.equal(`0__0__0__executionContract__functionName____txHash__0__${hash}__0__0__${eventDepo}__${user.address}`);
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, `WAVES_EVENT_STATUS__${hash}`, env.network)).to.be.equal(1);
         // eslint-disable-next-line prettier/prettier
@@ -1715,7 +1657,6 @@ describe('Witness component', function () {
           3,
           2,
           1,
-          'caller',
           'executionContract',
           'functionName',
           [],
@@ -1732,7 +1673,6 @@ describe('Witness component', function () {
             3,
             2,
             1,
-            'caller',
             'executionContract',
             'functionName',
             [],
@@ -1774,7 +1714,6 @@ describe('Witness component', function () {
             1,
             2,
             3,
-            'caller',
             'executionContract',
             'functionName',
             [],
@@ -1976,7 +1915,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 2 },
             // eslint-disable-next-line prettier/prettier
@@ -2025,7 +1964,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 3 },
             // eslint-disable-next-line prettier/prettier
@@ -2074,7 +2013,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2119,7 +2058,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__100000000__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2166,7 +2105,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2195,7 +2134,7 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier
@@ -2226,7 +2165,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2255,7 +2194,7 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier
@@ -2287,7 +2226,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user2.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user2.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2332,7 +2271,7 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__2__2__${depo}__${user2.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__2__2__${depo}__${user2.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier
@@ -2386,7 +2325,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2432,7 +2371,7 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier
@@ -2478,7 +2417,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user2.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__0__${depo}__${user2.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2522,7 +2461,7 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user2.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__1__1__${depo}__${user2.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier
@@ -2571,7 +2510,7 @@ describe('Witness component', function () {
             { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: idx },
             // eslint-disable-next-line prettier/prettier
-            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
+            { key: `WAVES_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
             // eslint-disable-next-line prettier/prettier
             { key: `WAVES_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
             // eslint-disable-next-line prettier/prettier
@@ -2616,7 +2555,1458 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `WAVES_EVENT__${eventIdx}`, env.network)
         ).to.be.equal(
-          `0__0__0__caller__executionContract__functionName____txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
+          `0__0__0__executionContract__functionName____txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
+        );
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance - depo);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(techConract.dApp, env.network)).to.be.equal(startMultisigBalance + depo);
+        expect(
+          await getDataValue(techConract, 'MINT_AMOUNT', env.network)
+        ).to.be.equal(reward);
+        expect(
+          await getDataValue(techConract, 'WITNESS_1', env.network)
+        ).to.be.equal(user2.address);
+        expect(
+          await getDataValue(techConract, 'WITNESS_2', env.network)
+        ).to.be.equal(techConract.dApp);
+        expect(
+          await getDataValue(techConract, 'WITNESS_3', env.network)
+        ).to.be.equal(user.address);
+      });
+    });
+  });
+
+  // TODO: check max transaction count (see limit in 5120 bytes for transaction JSON)
+  // MEMO: tests for MAX value positive because we have Int overflow to diapason less than zero
+  describe('submitEvmCallEvent tests', function () {
+    it('should throw when caller chain ID less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid callerChainId',
+        async () => {
+          await submitEvmCallEvent(
+            -1,
+            -2,
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when caller chain ID more than max int value', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid callerChainId',
+        async () => {
+          await submitEvmCallEvent(
+            '9223372036854775808',
+            -2,
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when execution chain ID less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid executionChainId',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            -1,
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when execution chain ID more than max int value', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid executionChainId',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            '9223372036854775808',
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when nonce less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid nonce',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            -1,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when nonce more than max int value', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid nonce',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            '9223372036854775808',
+            'execution contract',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    // MEMO: No need to check max string size - it is 358 symbols
+    it('should throw when execution contract is empty string', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid executionContract',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            '',
+            'calldata',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    // MEMO: Have no validation of format calldata string (min length 10 and startst from 0x...)
+    it('should throw when calldata is empty string', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid calldata',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            'executionContract',
+            '',
+            'txHash101',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when txHash is empty string', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid txHash',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            'executionContract',
+            'calldata',
+            '',
+            1366,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when block number less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid blockNumber',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            -1,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('should throw when block number more than max int value', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 101 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit EvmCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid blockNumber',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            123,
+            'execution contract',
+            'calldata',
+            'txHash101',
+            '9223372036854775808',
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
+    it('simple positive', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      const hash = base58Encode(
+        keccak(
+          concatenateBytes([
+            new Uint8Array(8), // RIDE Int 0
+            new Uint8Array(8),
+            new Uint8Array(8),
+            stringToBytes('executionContract'),
+            stringToBytes('calldata'),
+            stringToBytes('txHash'),
+            new Uint8Array(8),
+          ])
+        )
+      );
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+            { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('submit EvmCall event', async () => {
+        await submitEvmCallEvent(
+          0,
+          0,
+          0,
+          'executionContract',
+          'calldata',
+          'txHash',
+          0,
+          user
+        );
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance - eventDepo);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVM_EVENT__0', env.network))
+          // eslint-disable-next-line prettier/prettier
+          .to.be.equal(`0__0__0__executionContract__calldata__txHash__0__${hash}__0__0__${eventDepo}__${user.address}`);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVM_EVENT_STATUS__${hash}`, env.network)).to.be.equal(1);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVM_EVENT_SIZE', env.network)).to.be.equal(1);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVM_EVENT_CALLER__0__0', env.network)).to.be.equal(0);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVM_EVENT_CALLER__0__SIZE', env.network)).to.be.equal(1);
+      });
+    });
+
+    it('should throw when event already exists', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+            { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('submit EvmCall event', async () => {
+        await submitEvmCallEvent(
+          0,
+          0,
+          0,
+          'executionContract1',
+          'calldata2',
+          'txHash3',
+          0,
+          user
+        );
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit the same event',
+        'Error while executing dApp: submitEVMCallEvent: already exists',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            'executionContract1',
+            'calldata2',
+            'txHash3',
+            0,
+            user
+          );
+        }
+      );
+    });
+
+    it('should throw when have no security depo', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 1000000001;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+            { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit the same event',
+        'Error while executing dApp: submitEVMCallEvent: no security deposit',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            'executionContract3',
+            'calldata2',
+            'txHash1',
+            0,
+            user
+          );
+        }
+      );
+    });
+  });
+
+  describe('publishEvmEventStatus tests', function () {
+    it('should throw when event idx less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = -1;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: 2 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: invalid event idx',
+        async () => {
+          await publishEvmEventStatus(idx, 1, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${idx}`, env.network, -3)
+        ).to.be.equal(-3);
+      });
+    });
+
+    it('should throw when event idx equal eventSize or more', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 101;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${idx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: invalid event idx',
+        async () => {
+          await publishEvmEventStatus(idx, 1, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${idx}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
+
+    it('should throw when status not in diapazon (less than PROCESSING)', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 102;
+      const eventIdx = idx - 2;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: invalid status',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 0, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
+
+    it('should throw when status not in diapazon (more than REJECTED)', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 103;
+      const eventIdx = idx - 2;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: invalid status',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 4, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
+
+    it('should throw when caller not in witness list', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('thomas', this.parent?.ctx);
+      const idx = 104;
+      const eventIdx = idx - 2;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: invalid caller',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 2, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
+
+    it('should throw when event already confirmed', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 105;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash001';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 2 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: event already confirmed',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 3, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(2);
+      });
+    });
+
+    it('should throw when event already rejected', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 106;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash002';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 3 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: event already confirmed',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 2, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(3);
+      });
+    });
+
+    it('should throw when event already published', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 107;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash003';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 1 },
+          ],
+        });
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: already published',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 2, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(1);
+      });
+    });
+
+    it('should throw when publish event status = EVENT_STATUS_PROCESSING', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const idx = 108;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash004';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__100000000__${user.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+          ],
+        });
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      await stepIgnoreErrorByMessage(
+        'try to publish EvmCall event',
+        'Error while executing dApp: publishEVMEventStatus: incorrect status',
+        async () => {
+          await publishEvmEventStatus(eventIdx, 1, user);
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(0);
+      });
+    });
+
+    // MEMO: check not only reject but impossibility of PROCESSING status in quorum too
+    it('simple positive event rejected without quorum', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const depo = 100000000;
+      const idx = 1002;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash1002';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__${depo}__${user.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+          ],
+        });
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: contract.publicKey },
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
+      await step('publish WavesCall event', async () => {
+        await publishEvmEventStatus(eventIdx, 3, user);
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(3);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT__${eventIdx}`, env.network)
+        ).to.be.equal(
+          `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__1__${depo}__${user.address}`
+        );
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance);
+      });
+    });
+
+    it('event finalization when event is confirmed', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const user2 = getAccountByName('morpheus', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const depo = 100000000;
+      const reward = 123456789;
+      const idx = 1003;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash1003';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__1__1__${depo}__${user2.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user2.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user2.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'REWARD_TOKEN_ADDRESS', type: 'string', value: techConract.dApp },
+            { key: 'REWARD_AMOUNT', type: 'integer', value: reward },
+          ],
+        });
+      });
+      await step('reset mock state', async () => {
+        await resetMintData(techConract);
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: techConract.publicKey },
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
+      // eslint-disable-next-line prettier/prettier
+      const startMultisigBalance = await getBalance(techConract.dApp, env.network);
+      await step('publish WavesCall event', async () => {
+        await publishEvmEventStatus(eventIdx, 2, user);
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(2);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(2);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT__${eventIdx}`, env.network)
+        ).to.be.equal(
+          `0__0__0__executionContract__calldata__txHash__0__${eventHash}__2__2__${depo}__${user2.address}`
+        );
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user2.address}`, env.network)
+        ).to.be.equal(availBalance + depo);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(techConract.dApp, env.network)).to.be.equal(startMultisigBalance);
+        expect(
+          await getDataValue(techConract, 'MINT_AMOUNT', env.network)
+        ).to.be.equal(reward);
+        // console.info(`WITNESS_1: ${await getDataValue(techConract, 'WITNESS_1', env.network)}`);
+        // console.info(`WITNESS_2: ${await getDataValue(techConract, 'WITNESS_2', env.network)}`);
+        // console.info(`WITNESS_3: ${await getDataValue(techConract, 'WITNESS_3', env.network)}`);
+        expect(
+          await getDataValue(techConract, 'WITNESS_1', env.network)
+        ).to.be.equal(user2.address);
+        expect(
+          await getDataValue(techConract, 'WITNESS_2', env.network)
+        ).to.be.equal(techConract.dApp);
+        expect(
+          await getDataValue(techConract, 'WITNESS_3', env.network)
+        ).to.be.equal(user.address);
+      });
+    });
+
+    it('event finalization when event is rejected', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const user2 = getAccountByName('morpheus', this.parent?.ctx);
+      const user3 = getAccountByName('trinity', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const depo = 100000000;
+      const reward = 123456789;
+      const idx = 1003;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash1003';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user2.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user2.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'REWARD_TOKEN_ADDRESS', type: 'string', value: techConract.dApp },
+            { key: 'REWARD_AMOUNT', type: 'integer', value: reward },
+          ],
+        });
+      });
+      await step('reset mock state', async () => {
+        await resetMintData(techConract);
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: techConract.publicKey },
+          { type: 'string', value: user3.publicKey },
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
+      // eslint-disable-next-line prettier/prettier
+      const startMultisigBalance = await getBalance(techConract.dApp, env.network);
+      await step('publish WavesCall event', async () => {
+        await publishEvmEventStatus(eventIdx, 3, user);
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(3);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(3);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT__${eventIdx}`, env.network)
+        ).to.be.equal(
+          `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
+        );
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance - depo);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(techConract.dApp, env.network)).to.be.equal(startMultisigBalance + depo);
+        expect(
+          await getDataValue(techConract, 'MINT_AMOUNT', env.network)
+        ).to.be.equal(reward);
+        expect(
+          await getDataValue(techConract, 'WITNESS_1', env.network)
+        ).to.be.equal(user2.address);
+        expect(
+          await getDataValue(techConract, 'WITNESS_2', env.network)
+        ).to.be.equal(techConract.dApp);
+        expect(
+          await getDataValue(techConract, 'WITNESS_3', env.network)
+        ).to.be.equal(user3.address);
+      });
+    });
+
+    it('confirm event with alone witness', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const user2 = getAccountByName('morpheus', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const depo = 100000000;
+      const reward = 123456789;
+      const idx = 1003;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash1003';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__0__${depo}__${user2.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user2.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user2.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'REWARD_TOKEN_ADDRESS', type: 'string', value: techConract.dApp },
+            { key: 'REWARD_AMOUNT', type: 'integer', value: reward },
+          ],
+        });
+      });
+      await step('reset mock state', async () => {
+        await resetMintData(techConract);
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
+      // eslint-disable-next-line prettier/prettier
+      const startMultisigBalance = await getBalance(techConract.dApp, env.network);
+      await step('publish WavesCall event', async () => {
+        await publishEvmEventStatus(eventIdx, 2, user);
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(2);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(2);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT__${eventIdx}`, env.network)
+        ).to.be.equal(
+          `0__0__0__executionContract__calldata__txHash__0__${eventHash}__1__1__${depo}__${user2.address}`
+        );
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user2.address}`, env.network)
+        ).to.be.equal(availBalance + depo);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(techConract.dApp, env.network)).to.be.equal(startMultisigBalance);
+        expect(
+          await getDataValue(techConract, 'MINT_AMOUNT', env.network)
+        ).to.be.equal(reward);
+        expect(
+          await getDataValue(techConract, 'WITNESS_1', env.network)
+        ).to.be.equal(user2.address);
+        expect(
+          await getDataValue(techConract, 'WITNESS_2', env.network)
+        ).to.be.equal(user.address);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'WITNESS_3', env.network)).is.empty;
+      });
+    });
+
+    it('reject event with two witnesses', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const user2 = getAccountByName('morpheus', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const depo = 100000000;
+      const reward = 123456789;
+      const idx = 1003;
+      const eventIdx = idx - 2;
+      const eventHash = 'eventHash1003';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'CURRENT_EPOCH__0', type: 'integer', value: 0 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: idx },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventIdx}`, type: 'string', value: `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__1__${depo}__${user2.address}` },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_STATUS__${eventHash}`, type: 'integer', value: 1 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT_PUBLISHED__${user2.publicKey}__${eventIdx}`, type: 'integer', value: 0 },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user2.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'REWARD_TOKEN_ADDRESS', type: 'string', value: techConract.dApp },
+            { key: 'REWARD_AMOUNT', type: 'integer', value: reward },
+          ],
+        });
+      });
+      await step('reset mock state', async () => {
+        await resetMintData(techConract);
+      });
+      await step('set witness', async () => {
+        await setActiveWitnesses(0, [
+          { type: 'string', value: techConract.publicKey },
+          { type: 'string', value: user.publicKey },
+        ]);
+      });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
+      // eslint-disable-next-line prettier/prettier
+      const startMultisigBalance = await getBalance(techConract.dApp, env.network);
+      await step('publish WavesCall event', async () => {
+        await publishEvmEventStatus(eventIdx, 3, user);
+      });
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_PUBLISHED__${user.publicKey}__${eventIdx}`, env.network)
+        ).to.be.equal(3);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT_STATUS__${eventHash}`, env.network)
+        ).to.be.equal(3);
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `EVM_EVENT__${eventIdx}`, env.network)
+        ).to.be.equal(
+          `0__0__0__executionContract__calldata__txHash__0__${eventHash}__0__2__${depo}__${user2.address}`
         );
         expect(
           // eslint-disable-next-line prettier/prettier

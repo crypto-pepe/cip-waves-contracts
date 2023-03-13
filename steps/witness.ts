@@ -117,7 +117,6 @@ export const submitWavesCallEvent = async (
   callerChainId_: number | string,
   executionChainId_: number | string,
   nonce_: number | string,
-  caller_: string,
   executionContract_: string,
   functionName_: string,
   args_: any[] = [],
@@ -135,7 +134,6 @@ export const submitWavesCallEvent = async (
           { type: 'integer', value: callerChainId_ },
           { type: 'integer', value: executionChainId_ },
           { type: 'integer', value: nonce_ },
-          { type: 'string', value: caller_ },
           { type: 'string', value: executionContract_ },
           { type: 'string', value: functionName_ },
           { type: 'list', value: args_ },
@@ -160,6 +158,60 @@ export const publishWavesEventStatus = async (
       dApp: contract_.dApp,
       call: {
         function: 'publishWavesEventStatus',
+        args: [
+          { type: 'integer', value: eventIdx_ },
+          { type: 'integer', value: status_ },
+        ],
+      },
+    },
+    sender_.privateKey,
+    env.network
+  );
+};
+
+export const submitEvmCallEvent = async (
+  callerChainId_: number | string,
+  executionChainId_: number | string,
+  nonce_: number | string,
+  executionContract_: string,
+  calldata_: string,
+  txHash_: string,
+  blockNumber_: number | string,
+  sender_: Account,
+  contract_: Contract = contract
+) => {
+  return await invoke(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'submitEVMCallEvent',
+        args: [
+          { type: 'integer', value: callerChainId_ },
+          { type: 'integer', value: executionChainId_ },
+          { type: 'integer', value: nonce_ },
+          { type: 'string', value: executionContract_ },
+          { type: 'string', value: calldata_ },
+          { type: 'string', value: txHash_ },
+          { type: 'integer', value: blockNumber_ },
+        ],
+      },
+    },
+    sender_.privateKey,
+    env.network
+  );
+};
+
+export const publishEvmEventStatus = async (
+  eventIdx_: number,
+  status_: number,
+  sender_: Account,
+  contract_: Contract = contract
+) => {
+  return await invoke(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'publishEVMEventStatus',
         args: [
           { type: 'integer', value: eventIdx_ },
           { type: 'integer', value: status_ },

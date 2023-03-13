@@ -50,10 +50,10 @@ export default async function (
       throw 'todo';
       break;
     case 'testnet':
-      brigdeAddress = '3Ms7em8i7DYWb6by9VnDECFTejGwZ8guo6P';
+      brigdeAddress = '3NAkcL7Cjf7RTGyExKbu3QCdVSAhVM2gFHN';
       break;
     default:
-      brigdeAddress = '3Ms7em8i7DYWb6by9VnDECFTejGwZ8guo6P';
+      brigdeAddress = '3NAkcL7Cjf7RTGyExKbu3QCdVSAhVM2gFHN';
   }
 
   await invoke(

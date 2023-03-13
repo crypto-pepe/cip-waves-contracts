@@ -191,7 +191,6 @@ func execute(
     callerChainId_: Int,
     executionChainId_: Int,
     nonce_: Int,
-    callerContract_: String,
     txHash_: String,
     signature_: String
 ) = {
@@ -212,7 +211,6 @@ func execute(
         callerChainId_.toBytes() +
         executionChainId_.toBytes() +
         nonce_.toBytes() +
-        callerContract_.toBytes() +
         txHash_.toBytes() +
         contract_.fromBase58String() + 
         functionName_.toBytes() +
@@ -227,7 +225,7 @@ func execute(
             throw("execute: duplicate data")
         else unit
 
-    strict invocation = invoke(addressFromStringValue(contract_), functionName_, callerContract_ :: functionArgs_, [])
+    strict invocation = invoke(addressFromStringValue(contract_), functionName_, functionArgs_, [])
 
     (_saveDataHash(dataHash, height), unit)
 }
@@ -240,13 +238,13 @@ func updateSigner(newSignerPublicKey_: String, oldSignature_: String, newSignatu
         _validatePublicKey(newSignerPublicKey_, "updateSigner: invalid signer public key")
 
     let oldSignerPublicKey = _loadSignerPublicKey()
-    let oldData = # TODO: here we need more unique data (nonce maybe ???)
+    let oldData =
         "<<<PUBLIC--KEY--MIGRATION--ALLOWED>>>".toBytes() +
         oldSignerPublicKey +
         newSignerPublicKey_.fromBase58String()
 
     let newSignerPublicKey = fromBase58String(newSignerPublicKey_)
-    let newData = # TODO: here we need more unique data (nonce maybe ???)
+    let newData =
         "<<<PUBLIC--KEY--MIGRATION--CONFIRMED>>>".toBytes() +
         oldSignerPublicKey +
         newSignerPublicKey_.fromBase58String()

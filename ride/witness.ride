@@ -64,9 +64,9 @@ func _validateString(val_: String, err_: String) = {
 }
 
 func _validateArgString(val_: String, err_: String) = {
-    if val_.contains(ARGS_SEPARATOR) then
+    if val_.contains(ARGS_SEPARATOR) || val_.contains(SEPARATOR) then
         throw(err_)
-    else _validateString(val_, err_)
+    else true
 }
 
 func _validateArgs(args_: List[String], err_: String) = {

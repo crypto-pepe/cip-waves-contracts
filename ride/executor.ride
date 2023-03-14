@@ -194,16 +194,18 @@ func execute(
     txHash_: String,
     signature_: String
 ) = {
+    let argsSize = functionArgs_.size()
     strict err =
         _whenInitialized() &&
         _whenNotPaused() &&
         _validateAddress(contract_, "execute: invalid contract") &&
+        _validateInt(argsSize, 0, 22, "execute: invalid args size") &&
         if _loadChainId() != executionChainId_ then
             throw("execute: invalid execution chain id")
         else true
 
     func foldFunc(acc: ByteVector, elem: String) = {
-        acc + elem.toBytes()
+        acc + elem.size().toBytes() + elem.toBytes()
     }
     let argsBytes = FOLD<22>(functionArgs_, base58'', foldFunc)
 
@@ -211,9 +213,12 @@ func execute(
         callerChainId_.toBytes() +
         executionChainId_.toBytes() +
         nonce_.toBytes() +
+        txHash_.size().toBytes() +
         txHash_.toBytes() +
-        contract_.fromBase58String() + 
+        contract_.fromBase58String() +
+        functionName_.size().toBytes() +
         functionName_.toBytes() +
+        argsSize.toBytes() +
         argsBytes
 
     let dataHash = keccak256_32Kb(data)

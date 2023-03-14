@@ -58,9 +58,27 @@ func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: Str
 }
 
 func _validateString(val_: String, err_: String) = {
-    if val_.size() <= 0 then
+    if val_.size() <= 0 || val_.contains(SEPARATOR) then
         throw(err_)
     else true
+}
+
+func _validateArgString(val_: String, err_: String) = {
+    if val_.contains(ARGS_SEPARATOR) then
+        throw(err_)
+    else _validateString(val_, err_)
+}
+
+func _validateArgs(args_: List[String], err_: String) = {
+    if args_.size() > 22 then
+        throw(err_)
+    else 
+        func foldFunc(acc: (Boolean, String), elem: String) = {
+            (acc._1 && _validateArgString(elem, acc._2), acc._2)
+        }
+
+        let result = FOLD<22>(args_, (true, err_), foldFunc)
+        result._1
 }
 
 func _validatePaymentsSize(payments_: List[AttachedPayment], target_: Int, err_: String) = {
@@ -704,6 +722,7 @@ func submitWavesCallEvent(
         _validateInt(nonce_, 0, MAX_INT, "submitWavesCallEvent: invalid nonce") &&
         _validateString(executionContract_, "submitWavesCallEvent: invalid executionContract") &&
         _validateString(functionName_, "submitWavesCallEvent: invalid functionName") &&
+        _validateArgs(args_, "submitWavesCallEvent: invalid args") &&
         _validateString(txHash_, "submitWavesCallEvent: invalid txHash") &&
         _validateInt(blockNumber_, 0, MAX_INT, "submitWavesCallEvent: invalid blockNumber")
 

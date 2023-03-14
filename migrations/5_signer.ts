@@ -97,7 +97,7 @@ export default async function (
           },
           {
             type: 'integer',
-            value: 1440, // resetBlockDelta_
+            value: 10, // resetBlockDelta_
           },
           {
             type: 'string',

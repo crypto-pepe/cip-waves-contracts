@@ -33,6 +33,12 @@ func _validateInt(val_: Int, lowerBoundary_: Int, upperBoundary_: Int, err_: Str
     else true
 }
 
+func _validateString(val_: String, err_: String) = {
+    if val_.size() <= 0 || val_.contains(SEPARATOR) then
+        throw(err_)
+    else true
+}
+
 # ---------- Data structures functions ----------
 
 func _loadInit() = {
@@ -231,7 +237,9 @@ func call(executionChainId_: Int, executionContract_: String, calldata_: String)
     strict err =
         _whenInitialized() &&
         _whenAllowed(i.caller) &&
-        _whenNotPaused()
+        _whenNotPaused() &&
+        _validateString(executionContract_, "call: invalid executionContract") &&
+        _validateString(calldata_, "call: invalid calldata")
 
     let nonce = _loadNonce()
     let eventSize = _loadEventSize()

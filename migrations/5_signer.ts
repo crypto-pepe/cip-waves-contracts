@@ -30,6 +30,13 @@ export default async function (
   );
   console.log('PCBT token contract address =', tokenContractAddress);
 
+  const witnessContract = keyPair(seedWithNonce(deployerSeed, 4));
+  const witnessContractAddress = address(
+    { publicKey: witnessContract.publicKey },
+    network.chainID
+  );
+  console.log('Witness contract address =', witnessContractAddress);
+
   const signerContract = keyPair(seedWithNonce(deployerSeed, 5));
   const signerContractAddress = address(
     { publicKey: signerContract.publicKey },
@@ -106,6 +113,10 @@ export default async function (
           {
             type: 'integer',
             value: 200000, // rewardAmount_
+          },
+          {
+            type: 'string',
+            value: witnessContractAddress, // witnessAddress_
           },
         ],
       },

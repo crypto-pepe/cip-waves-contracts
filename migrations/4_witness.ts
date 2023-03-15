@@ -41,7 +41,7 @@ export default async function (
   const deployScriptFee = 2600000;
   await transfer(
     {
-      amount: deployScriptFee + 2 * network.invokeFee,
+      amount: deployScriptFee + 4 * network.invokeFee,
       recipient: witnessContractAddress,
     },
     deployerPrivateKey,
@@ -98,6 +98,70 @@ export default async function (
           {
             type: 'integer',
             value: 100000, // rewardAmount_
+          },
+        ],
+      },
+    },
+    witnessContract.privateKey,
+    network,
+    proofsGenerator
+  ).catch((e) => {
+    throw e;
+  });
+
+  let wavesChainId;
+  let ethChainId;
+  switch (network.name) {
+    case 'mainnet':
+      wavesChainId = 1;
+      ethChainId = 2;
+      break;
+    case 'testnet':
+      wavesChainId = 10001;
+      ethChainId = 10002;
+      break;
+    default:
+      wavesChainId = 10001;
+      ethChainId = 10002;
+  }
+
+  await invoke(
+    {
+      dApp: witnessContractAddress,
+      call: {
+        function: 'setEventType',
+        args: [
+          {
+            type: 'integer',
+            value: wavesChainId, // execChainId_
+          },
+          {
+            type: 'string',
+            value: 'WAVES', // type_
+          },
+        ],
+      },
+    },
+    witnessContract.privateKey,
+    network,
+    proofsGenerator
+  ).catch((e) => {
+    throw e;
+  });
+
+  await invoke(
+    {
+      dApp: witnessContractAddress,
+      call: {
+        function: 'setEventType',
+        args: [
+          {
+            type: 'integer',
+            value: ethChainId, // execChainId_
+          },
+          {
+            type: 'string',
+            value: 'EVM', // type_
           },
         ],
       },

@@ -12,6 +12,7 @@ let KEY_RESET_BLOCK_DELTA = "RESET_BLOCK_DELTA"
 let KEY_SEC_DEPO = "SEC_DEPO"
 let KEY_REWARD_TOKEN_ADDRESS = "REWARD_TOKEN_ADDRESS"
 let KEY_REWARD_AMOUNT = "REWARD_AMOUNT"
+let KEY_WINTESS_ADDRESS = "WINTESS_ADDRESS"
 let KEY_CURRENT_EPOCH = "CURRENT_EPOCH"
 let KEY_SIGNERS_PER_EPOCH = "SIGNERS_PER_EPOCH"
 let KEY_EVENT_STATUS = "EVENT_STATUS"
@@ -26,9 +27,14 @@ let KEY_S_SIGMA = "S_SIGMA"
 let KEY_S_SIGNERS = "S_SIGNERS"
 let KEY_SIGNED_EVENT_EXECUTOR = "SIGNED_EVENT_EXECUTOR"
 let KEY_SIZE = "SIZE"
+let KEY_SIGNER_GROUP_PUBLIC_KEY = "SIGNER_GROUP_PUBLIC_KEY"
 
 let FUNC_MINT_MANY = "mintMany"
+let FUNC_IS_CONFIRMED_EVENT = "isConfirmedEvent"
+let FUNC_GET_RAW_EVENT = "getRawEvent"
 
+let EVENT_TYPE_WAVES = "WAVES"
+let EVENT_TYPE_EVM = "EVM"
 let EVENT_STATUS_INIT = 1
 let EVENT_STATUS_SIGN = 2
 let EVENT_STATUS_DONE = 3
@@ -181,6 +187,17 @@ func _loadRewardAmount() = {
 
 func _saveRewardAmount(val_: Int) = {
     [IntegerEntry(KEY_REWARD_AMOUNT, val_)]
+}
+
+func _loadWitnessAddress() = {
+    match getString(KEY_WINTESS_ADDRESS) {
+        case a:String => addressFromStringValue(a)
+        case _ => Address(base58'')
+    }
+}
+
+func _saveWitnessAddress(val_: Address) = {
+    [StringEntry(KEY_WINTESS_ADDRESS, val_.toString())]
 }
 
 func _loadCurrentEpoch(execChainId_: Int) = {
@@ -412,6 +429,16 @@ func _whenInitialized() = {
     else true
 }
 
+# ---------- Witness modifiers ----------
+
+func _isConfirmedEvent(eventId_: Int, execChainId_: Int, err_: String) = {
+    strict result = invoke(_loadWitnessAddress(), FUNC_IS_CONFIRMED_EVENT, [eventId_, execChainId_], [])
+    match result {
+        case a:Boolean => if !a then throw(err_) else true
+        case _ => throw(err_)
+    }
+}
+
 # ---------- Signer modifiers ----------
 
 func _isActiveSigner(publicKey_: String, publicKeys_: List[String], err_: String) = {
@@ -522,7 +549,7 @@ func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
 # ---------- Public callable functions ----------
 
 @Callable(i)
-func init(minSecDepo_: Int, punishment_: Int, resetBlockDelta_: Int, rewardTokenAddress_: String, rewardAmount_: Int) = {
+func init(minSecDepo_: Int, punishment_: Int, resetBlockDelta_: Int, rewardTokenAddress_: String, rewardAmount_: Int, witnessAddress_: String) = {
     strict err =
         _onlyThisContract(i.caller) &&
         _whenNotInitialized() &&
@@ -531,15 +558,17 @@ func init(minSecDepo_: Int, punishment_: Int, resetBlockDelta_: Int, rewardToken
         _validateInt(punishment_, 0, MAX_INT, "init: invalid punishment") &&
         _validateInt(resetBlockDelta_, 0, MAX_INT, "init: invalid resetBlockDelta") &&
         _validateAddress(rewardTokenAddress_, "init: invalid rewardTokenAddress") &&
-        _validateInt(rewardAmount_, 0, MAX_INT, "init: invalid rewardAmount")
+        _validateInt(rewardAmount_, 0, MAX_INT, "init: invalid rewardAmount") &&
+        _validateAddress(witnessAddress_, "init: invalid witnessAddress")
 
     (
         _saveInit(true) ++
         _saveMinSecDepo(minSecDepo_) ++
         _savePunishment(punishment_) ++
         _saveResetBlockDelta(resetBlockDelta_) ++
-        _saveRewardTokenAddress(addressFromStringValue(rewardTokenAddress_)) ++
-        _saveRewardAmount(rewardAmount_),
+        _saveRewardTokenAddress(rewardTokenAddress_.addressFromStringValue()) ++
+        _saveRewardAmount(rewardAmount_) ++
+        _saveWitnessAddress(witnessAddress_.addressFromStringValue()),
         unit
     )
 }
@@ -565,7 +594,6 @@ func setActiveSigners(execChainId_: Int, signers_: List[String], t_: Int) = {
 
 @Callable(i)
 func submitR(eventId_: Int, execChainId_: Int, r_: String) = {
-    # TODO: load event from witness contract or not? check execChainId_ ?
     let callerPublicKey = toBase58String(i.callerPublicKey)
     let epoch = _loadCurrentEpoch(execChainId_)
     let t = _loadT(execChainId_, epoch)
@@ -575,6 +603,7 @@ func submitR(eventId_: Int, execChainId_: Int, r_: String) = {
         _validateInt(eventId_, 0, MAX_INT, "submitR: invalid eventId") &&
         _validateInt(execChainId_, 0, MAX_INT, "submitR: invalid execChainId") &&
         _validateString(r_, "submitR: invalid r") &&
+        _isConfirmedEvent(eventId_, execChainId_, "submitR: event not confirmed") &&
         _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitR: not active") &&
         _checkSecDepo(callerPublicKey, "submitR: not enough security deposit") &&
         _checkEventStatusForSubmitR(execChainId_, eventId_, "submitR: invalid event status") &&

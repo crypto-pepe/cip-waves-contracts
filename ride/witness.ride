@@ -1035,6 +1035,40 @@ func isConfirmedEvent(eventId_: Int, execChainId_: Int) = {
 }
 
 @Callable(i)
+func getRawEvent(eventId_: Int, execChainId_: Int) = {
+    strict err =
+        _validateEventIdx(eventId_, _loadWavesEventSize(), "getRawEvent: invalid event idx") &&
+        _validateInt(execChainId_, 0, MAX_INT, "getRawEvent: invalid execChainId")
+
+    let type = _loadEventType(execChainId_)
+    if type == EVENT_TYPE_WAVES then
+        let event = _loadWavesEvent(eventId_)
+        let argsSize = event._6.size()
+
+        func foldFunc(acc: ByteVector, elem: String) = {
+            acc + elem.size().toBytes() + elem.toBytes()
+        }
+        let argsBytes = FOLD<22>(event._6, base58'', foldFunc)
+
+        let data =
+            event._1.toBytes() +
+            event._2.toBytes() +
+            event._3.toBytes() +
+            event._7.size().toBytes() +
+            event._7.toBytes() +
+            event._4.fromBase58String() +
+            event._5.size().toBytes() +
+            event._5.toBytes() +
+            argsSize.toBytes() +
+            argsBytes
+
+        ([], (type, data))
+    else if type == EVENT_TYPE_EVM then
+        ([], (type, base58''))
+    else throw("getRawEvent: invalid event type")
+}
+
+@Callable(i)
 func setMultisig(multisig_: String) = {
     strict err =
         _onlyThisContract(i.caller) &&

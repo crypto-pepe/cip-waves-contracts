@@ -264,6 +264,20 @@ func _saveT(execChainId_: Int, epoch_: Int, val_: Int) = {
     [IntegerEntry(makeString([KEY_T, execChainId_.toString(), epoch_.toString()], SEPARATOR), val_)]
 }
 
+func _loadSignerGroupPublicKey(execChainId_: Int, epoch_: Int) = {
+    match getString(makeString([KEY_SIGNER_GROUP_PUBLIC_KEY, execChainId_.toString(), epoch_.toString()], SEPARATOR)) {
+        case a:String => a.fromBase58String()
+        case _ => base58''
+    }
+}
+
+func _saveSignerGroupPublicKey(execChainId_: Int, epoch_: Int, signerGroupPublicKey_: ByteVector) = {
+    [StringEntry(
+        makeString([KEY_SIGNER_GROUP_PUBLIC_KEY, execChainId_.toString(), epoch_.toString()], SEPARATOR),
+        signerGroupPublicKey_.toBase58String()
+    )]
+}
+
 func _loadRsByEvent(execChainId_: Int, eventId_: Int) = {
     match getString(makeString([KEY_R, execChainId_.toString(), eventId_.toString()], SEPARATOR)) {
         case a:String => if a.size() > 0 then a.split(SEPARATOR) else []
@@ -439,6 +453,14 @@ func _isConfirmedEvent(eventId_: Int, execChainId_: Int, err_: String) = {
     }
 }
 
+func _getRawEvent(eventId_: Int, execChainId_: Int) = {
+    strict result = invoke(_loadWitnessAddress(), FUNC_GET_RAW_EVENT, [eventId_, execChainId_], [])
+    match result {
+        case a:(String, ByteVector) => a
+        case _ => throw("_getRawEvent: revert")
+    }
+}
+
 # ---------- Signer modifiers ----------
 
 func _isActiveSigner(publicKey_: String, publicKeys_: List[String], err_: String) = {
@@ -536,6 +558,22 @@ func _compensateCorrect(signers_: List[String], compensation_: Int) = {
     FOLD<10>(signers_, [], foldFunc)
 }
 
+func _verifySignature(execChainId_: Int, epoch_: Int, eventId_: Int, rSigma_: String, sSigma_: String, err_: String) = {
+    let event = _getRawEvent(eventId_, execChainId_)
+    let eventType = event._1
+    let eventBytes = event._2
+    let groupPublicKey = _loadSignerGroupPublicKey(execChainId_, epoch_)
+
+    if eventType == EVENT_TYPE_WAVES then
+        let signature = rSigma_.fromBase58String() + sSigma_.fromBase58String()
+        if !sigVerify(eventBytes, signature, groupPublicKey) then
+            throw(err_)
+        else true
+    else if eventType == EVENT_TYPE_EVM then
+        true
+    else throw(err_)
+}
+
 # ---------- Convertion functions ----------
 
 func _publicKeysToAddrsStr(publicKeys_: List[String]) = {
@@ -574,12 +612,13 @@ func init(minSecDepo_: Int, punishment_: Int, resetBlockDelta_: Int, rewardToken
 }
 
 @Callable(i)
-func setActiveSigners(execChainId_: Int, signers_: List[String], t_: Int) = {
+func setActiveSigners(execChainId_: Int, signers_: List[String], t_: Int, signerGroupPublicKey_: String) = {
     strict err =
         _onlyThisContract(i.caller) &&
         _whenInitialized() &&
         _validatePublicKeys(signers_, "setActiveSigners: invalid signers") &&
-        _validateInt(t_, 2, signers_.size(), "setActiveSigners: invalid T")
+        _validateInt(t_, 2, signers_.size(), "setActiveSigners: invalid T") &&
+        _validateString(signerGroupPublicKey_, "setActiveSigners: invalid signerGroupPublicKey")
 
     let epoch = _loadCurrentEpoch(execChainId_)
 
@@ -587,6 +626,7 @@ func setActiveSigners(execChainId_: Int, signers_: List[String], t_: Int) = {
         _saveCurrentEpoch(execChainId_, epoch + 1) ++
         _saveT(execChainId_, epoch + 1, t_) ++
         _saveSigners(execChainId_, epoch + 1, signers_) ++
+        _saveSignerGroupPublicKey(execChainId_, epoch + 1, signerGroupPublicKey_.fromBase58String()) ++
         _incrementLocks(signers_),
         unit
     )
@@ -648,7 +688,9 @@ func submitS(eventId_: Int, execChainId_: Int, rSigma_: String, s_: String, sSig
     let signersArray = _loadSignersWithSByEvent(execChainId_, eventId_)
     let eventStatusActions =
         if sArray.size() + 1 == t then
-            strict err1 = _validateString(sSigma_, "submitS: invalid s sigma")
+            strict err1 =
+                _validateString(sSigma_, "submitS: invalid s sigma") &&
+                _verifySignature(execChainId_, epoch, eventId_, rSigma_, sSigma_, "submitS: invalid signature")
 
             let executorIdxSize = _loadSignedEventExecutorIdxSize(execChainId_)
             let rewardAddresses = _publicKeysToAddrsStr(signersArray :+ callerPublicKey)

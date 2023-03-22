@@ -566,7 +566,7 @@ func _verifySignature(execChainId_: Int, epoch_: Int, eventId_: Int, rSigma_: St
 
     if eventType == EVENT_TYPE_WAVES then
         let signature = rSigma_.fromBase58String() + sSigma_.fromBase58String()
-        if !sigVerify(eventBytes, signature, groupPublicKey) then
+        if !sigVerify(keccak256_32Kb(eventBytes), signature, groupPublicKey) then
             throw(err_)
         else true
     else if eventType == EVENT_TYPE_EVM then

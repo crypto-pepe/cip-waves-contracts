@@ -48,7 +48,7 @@ export default async function (
   switch (network.name) {
     case 'mainnet':
       execChainId = 1;
-      t = 3; // TODO: set
+      t = 2;
       break;
     case 'testnet':
       execChainId = 10001;
@@ -60,12 +60,27 @@ export default async function (
   }
 
   let signers: InvokeScriptCallStringArgument[];
+  let signerPublicKey;
   switch (network.name) {
     case 'mainnet':
-      signers = []; // TODO
-      throw 'todo';
+      signerPublicKey = 'GDguuKdo8ZfyHZSq8JsdEecx2GsEFT4kRERz8ujDEUcn';
+      signers = [
+        {
+          type: 'string',
+          value: '6K19i3FJ9XVbN6XgMTABb6yHvoEEwDiyyqLhnCzaqyus',
+        },
+        {
+          type: 'string',
+          value: '9PkzFLZBRr6ntzhRq9mEg6Zqj2s7Go6YJ9uA7yNjRDDq',
+        },
+        {
+          type: 'string',
+          value: '7s3wum6Bp1ceUDrnXxdHc31rxv1FhzRcmPbSQaK9eiP1',
+        },
+      ];
       break;
     case 'testnet':
+      signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';
       signers = [
         {
           type: 'string',
@@ -82,6 +97,7 @@ export default async function (
       ];
       break;
     default:
+      signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';
       signers = [
         {
           type: 'string',
@@ -115,6 +131,10 @@ export default async function (
           {
             type: 'integer',
             value: t, // t_
+          },
+          {
+            type: 'string',
+            value: signerPublicKey,
           },
         ],
       },

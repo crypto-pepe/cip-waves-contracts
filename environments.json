@@ -185,18 +185,13 @@
       "tech4"
     ],
     "amountPerAccount": 100000000000,
-    "contracts": [
-      "evm_caller",
-      "executor",
-      "witness",
-      "mintable_token"
-    ],
+    "contracts": ["evm_caller", "executor", "witness", "mintable_token"],
     "contractsPath": "ride/",
     "contractsExtention": ".ride",
     "amountPerContract": 10000000000,
     "network": {
       "name": "mainnet",
-      "nodeAPI": "https://nodes.wavesnodes.com",
+      "nodeAPI": "https://nodes.waves.exchange",
       "nodeTimeout": 60000,
       "chainID": "W",
       "apiKey": "waves-private-node",

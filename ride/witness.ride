@@ -1036,12 +1036,12 @@ func isConfirmedEvent(eventId_: Int, execChainId_: Int) = {
 
 @Callable(i)
 func getRawEvent(eventId_: Int, execChainId_: Int) = {
-    strict err =
-        _validateEventIdx(eventId_, _loadWavesEventSize(), "getRawEvent: invalid event idx") &&
-        _validateInt(execChainId_, 0, MAX_INT, "getRawEvent: invalid execChainId")
+    strict err = _validateInt(execChainId_, 0, MAX_INT, "getRawEvent: invalid execChainId")
 
     let type = _loadEventType(execChainId_)
     if type == EVENT_TYPE_WAVES then
+        strict err1 = _validateEventIdx(eventId_, _loadWavesEventSize(), "getRawEvent: invalid event idx")
+
         let event = _loadWavesEvent(eventId_)
         let argsSize = event._6.size()
 

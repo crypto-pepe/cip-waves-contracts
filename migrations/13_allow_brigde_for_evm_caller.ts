@@ -46,8 +46,7 @@ export default async function (
   let brigdeAddress;
   switch (network.name) {
     case 'mainnet':
-      brigdeAddress = ''; // TODO
-      throw 'todo';
+      brigdeAddress = '3P8r3cutvYsKAKaLeXMbTpdyyK48k5noFs1';
       break;
     case 'testnet':
       brigdeAddress = '3NAkcL7Cjf7RTGyExKbu3QCdVSAhVM2gFHN';

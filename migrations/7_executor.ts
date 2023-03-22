@@ -87,8 +87,7 @@ export default async function (
   let signerPublicKey;
   switch (network.name) {
     case 'mainnet':
-      signerPublicKey = 'yMQKms5WvLvobErygwGjByEuNuebLMGXHndfVDsjMVD'; // TODO
-      throw 'todo: set key';
+      signerPublicKey = 'GDguuKdo8ZfyHZSq8JsdEecx2GsEFT4kRERz8ujDEUcn';
       break;
     case 'testnet':
       signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';

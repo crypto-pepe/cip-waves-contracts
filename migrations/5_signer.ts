@@ -45,7 +45,7 @@ export default async function (
   console.log('Signer contract address =', signerContractAddress);
 
   // Deploy signerContract
-  const deployScriptFee = 2100000;
+  const deployScriptFee = 2300000;
   await transfer(
     {
       amount: deployScriptFee + 2 * network.invokeFee,

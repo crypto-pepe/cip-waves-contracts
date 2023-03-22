@@ -58,8 +58,20 @@ export default async function (
   let witnesses: InvokeScriptCallStringArgument[];
   switch (network.name) {
     case 'mainnet':
-      witnesses = []; // TODO
-      throw 'todo';
+      witnesses = [
+        {
+          type: 'string',
+          value: '2x6CpTuLj2aeo9o61qJ9DXR9AjiDDfrnTMbEh3QKnXTk',
+        },
+        {
+          type: 'string',
+          value: 'GAv9jqBZPVoQjM39WskUHvun4ioHsni2SsdDRXS2KK8A',
+        },
+        {
+          type: 'string',
+          value: '6kqabQQrAWFzGnE2S4NRTnhaoF5GTDiqHBJgtbS6kBrh',
+        },
+      ];
       break;
     case 'testnet':
       witnesses = [

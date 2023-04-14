@@ -222,3 +222,69 @@ export const publishEvmEventStatus = async (
     env.network
   );
 };
+
+export const setEventType = async (
+  chainId_: any,
+  type_: string,
+  contract_: Contract = contract
+) => {
+  const tx = prepareInvokeTx(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'setEventType',
+        args: [
+          { type: 'integer', value: chainId_ },
+          { type: 'string', value: type_ },
+        ],
+      },
+    },
+    { privateKey: contract_.privateKey }
+  );
+  await setTxSign(contract_.dApp, tx.id);
+  await sendTransaction(tx);
+};
+
+export const isConfirmedEvent = async (
+  eventId_: number,
+  chainId_: any,
+  sender_: Account,
+  contract_: Contract = contract
+) => {
+  return await invoke(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'isConfirmedEvent',
+        args: [
+          { type: 'integer', value: eventId_ },
+          { type: 'integer', value: chainId_ },
+        ],
+      },
+    },
+    sender_.privateKey,
+    env.network
+  );
+};
+
+export const getRawEvent = async (
+  eventId_: number,
+  chainId_: any,
+  sender_: Account,
+  contract_: Contract = contract
+) => {
+  return await invoke(
+    {
+      dApp: contract_.dApp,
+      call: {
+        function: 'getRawEvent',
+        args: [
+          { type: 'integer', value: eventId_ },
+          { type: 'integer', value: chainId_ },
+        ],
+      },
+    },
+    sender_.privateKey,
+    env.network
+  );
+};

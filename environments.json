@@ -42,7 +42,9 @@
       "tech1",
       "tech2",
       "tech3",
-      "tech4"
+      "tech4",
+      "tech5",
+      "tech6"
     ],
     "amountPerAccount": 22000000000000,
     "contracts": [
@@ -50,6 +52,8 @@
       "executor",
       "witness",
       "mintable_token",
+      "signer",
+      "multisig",
       "technical"
     ],
     "contractsPath": "ride/",
@@ -113,7 +117,9 @@
       "tech1",
       "tech2",
       "tech3",
-      "tech4"
+      "tech4",
+      "tech5",
+      "tech6"
     ],
     "amountPerAccount": 100000000000,
     "contracts": [
@@ -121,6 +127,8 @@
       "executor",
       "witness",
       "mintable_token",
+      "signer",
+      "multisig",
       "technical"
     ],
     "contractsPath": "ride/",
@@ -182,10 +190,19 @@
       "tech1",
       "tech2",
       "tech3",
-      "tech4"
+      "tech4",
+      "tech5",
+      "tech6"
     ],
     "amountPerAccount": 100000000000,
-    "contracts": ["evm_caller", "executor", "witness", "mintable_token"],
+    "contracts": [
+      "evm_caller",
+      "executor",
+      "witness",
+      "mintable_token",
+      "signer",
+      "multisig"
+    ],
     "contractsPath": "ride/",
     "contractsExtention": ".ride",
     "amountPerContract": 10000000000,

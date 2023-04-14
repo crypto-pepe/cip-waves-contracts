@@ -1477,6 +1477,82 @@ describe('EVM Caller component', function () {
       });
     });
 
+    it('should throw when empty calldata', async () => {
+      const contract = getContractByName('evm_caller', this.parent?.ctx);
+      const techContract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      await step('set multisig', async () => {
+        await setMultisig(techContract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `ALLOWANCE__${user.address}`, type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'EVENT_SIZE', type: 'integer', value: 123 },
+            { key: 'NONCE', type: 'integer', value: 123 },
+            { key: 'CALL_CHAIN_ID', type: 'integer', value: 0 },
+            { key: 'EVENT__123', type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to call',
+        'Error while executing dApp: call: invalid calldata',
+        async () => {
+          await call(0, 'execution contract', '', user);
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVENT_SIZE', env.network)).to.be.equal(123);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'NONCE', env.network)).to.be.equal(123);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVENT__123', env.network, '')).is.empty;
+      });
+    });
+
+    it('should throw when calldata contains separator', async () => {
+      const contract = getContractByName('evm_caller', this.parent?.ctx);
+      const techContract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      await step('set multisig', async () => {
+        await setMultisig(techContract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `ALLOWANCE__${user.address}`, type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'EVENT_SIZE', type: 'integer', value: 123 },
+            { key: 'NONCE', type: 'integer', value: 123 },
+            { key: 'CALL_CHAIN_ID', type: 'integer', value: 0 },
+            { key: 'EVENT__123', type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to call',
+        'Error while executing dApp: call: invalid calldata',
+        async () => {
+          await call(0, 'execution contract', 'calldata__calldata', user);
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVENT_SIZE', env.network)).to.be.equal(123);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'NONCE', env.network)).to.be.equal(123);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, 'EVENT__123', env.network, '')).is.empty;
+      });
+    });
+
     it('simple positive', async () => {
       const contract = getContractByName('evm_caller', this.parent?.ctx);
       const techContract = getContractByName('technical', this.parent?.ctx);
@@ -1500,7 +1576,8 @@ describe('EVM Caller component', function () {
       });
       let tx: any;
       await step('call', async () => {
-        tx = await call(13, 'execution contract_', '', user);
+        // eslint-disable-next-line prettier/prettier
+        tx = await call(13, 'execution contract_', '0x' + base16Encode('1a2b3c4d'), user);
       });
       // console.info(await getDataValue(contract, 'EVENT__123', env.network));
       await step('check state', async () => {
@@ -1515,7 +1592,7 @@ describe('EVM Caller component', function () {
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVENT__123', env.network))
           // eslint-disable-next-line prettier/prettier
-          .is.contains(`0__13__execution contract___0x${likeEvmAddress(user.address)}__123__${base58Encode(tx.id)}__`);
+          .is.contains(`0__13__execution contract___0x000124bd0000000000000152ab16a2998938fc4ccc4d17424137b081cc1db15a59fbfbef6ce10e__123__${base58Encode(tx.id)}__`);
       });
     });
 

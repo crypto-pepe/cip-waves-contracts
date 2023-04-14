@@ -676,7 +676,7 @@ func submitS(eventId_: Int, execChainId_: Int, rSigma_: String, s_: String, sSig
         _whenInitialized() &&
         _validateInt(eventId_, 0, MAX_INT, "submitS: invalid eventId") &&
         _validateInt(execChainId_, 0, MAX_INT, "submitS: invalid execChainId") &&
-        _validateString(rSigma_, "submitS: invalid r sigma") && # TODO: should we check match with previous r_sigma published ?
+        _validateString(rSigma_, "submitS: invalid r sigma") &&
         _validateString(s_, "submitS: invalid s") &&
         _isActiveSigner(callerPublicKey, _loadSigners(execChainId_, epoch), "submitS: not active") &&
         _checkSecDepo(callerPublicKey, "submitS: not enough security deposit") &&

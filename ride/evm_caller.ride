@@ -125,7 +125,7 @@ func _saveEvent(index_: Int, event_: (Int, Int, String, String, Int, String, Int
         makeString([KEY_EVENT, index_.toString()], SEPARATOR),
         makeString([
             event_._1.toString(),   # callChainId
-            event_._2.toString(),   # executionChainId TODO add nonce
+            event_._2.toString(),   # executionChainId
             event_._3,              # executionContract
             event_._4,              # calldata
             event_._5.toString(),   # nonce

@@ -87,7 +87,7 @@ export default async function (
   let signerPublicKey;
   switch (network.name) {
     case 'mainnet':
-      signerPublicKey = 'GDguuKdo8ZfyHZSq8JsdEecx2GsEFT4kRERz8ujDEUcn';
+      signerPublicKey = 'FDAosgVyXn8MRQr7fQJbe5H2T2Q3emoqyauUx7F7toM5';
       break;
     case 'testnet':
       signerPublicKey = 'CU7TWPhow9ETi5NHB4tJwDHpS9LxZrGfZxS2pWDLpLCK';

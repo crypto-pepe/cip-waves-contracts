@@ -7,14 +7,6 @@ let REWARD_COMPENSATION = 500000
 let CLAIM_INTERVAL = 1440
 
 
-func _getRawEvent(eid_: Int, chain_: Int, contract: String) = {
-    strict result = invoke(addressFromStringValue(contract), "getRawEvent", [eid_, chain_], [])
-    match result {
-        case a:(String, ByteVector) => a
-        case _ => throw("_getRawEvent: revert")
-    }
-}
-
 @Callable(i)
 func bigintToBinary(a_: Int) = {
     let _a = a_.toBigInt()
@@ -98,35 +90,70 @@ func mintMany(
 }
 
 @Callable(i)
-func checkEventConfirmation(
-    eid_: Int,
+func setEventConfirmationParams(
     chain_: Int,
-    contract: String
+    eid_: Int,
+    isConfirmed_: Boolean
 ) = {
-    strict isConfirm = invoke(addressFromStringValue(contract), "isConfirmedEvent", [eid_, chain_], [])
     (
         [
-            BooleanEntry("CONFIRMATION", isConfirm == true)
+            BooleanEntry("EVENT__" + chain_.toString() + SEPARATOR + eid_.toString(), isConfirmed_)
         ], unit
     )
 }
 
 @Callable(i)
-func checkRawData(
+func isConfirmedEvent(
     eid_: Int,
-    chain_: Int,
-    contract: String
+    chain_: Int
 ) = {
-    let event = _getRawEvent(eid_, chain_, contract)
-    let type = event._1
-    let data = event._2
+    let ret = getBooleanValue("EVENT__" + chain_.toString() + SEPARATOR + eid_.toString())
+    (
+        [], ret
+    )
+}
 
+@Callable(i)
+func setEventType(
+    chain_: Int,
+    eid_: Int,
+    eventType_: String
+) = {
     (
         [
-            StringEntry("DATA_TYPE", type),
-            StringEntry("DATA_HASH", toBase16String(data))
+            StringEntry("EVENT_TYPE__" + chain_.toString() + SEPARATOR + eid_.toString(), eventType_)
         ], unit
     )
+}
+
+@Callable(i)
+func setEventData(
+    chain_: Int,
+    eid_: Int,
+    data_: String
+) = {
+    (
+        [
+            BinaryEntry("EVENT_BYTES__" + chain_.toString() + SEPARATOR + eid_.toString(), data_.fromBase16String())
+        ], unit
+    )
+}
+
+@Callable(i)
+func getRawEvent(
+    eid_: Int,
+    chain_: Int
+) = {
+    let type = getStringValue("EVENT_TYPE__" + chain_.toString() + SEPARATOR + eid_.toString())
+    let data = getBinaryValue("EVENT_BYTES__" + chain_.toString() + SEPARATOR + eid_.toString())
+    (
+        [], (type, data)
+    )
+}
+
+@Callable(i)
+func nothing() = {
+    ([], unit)
 }
 
 @Verifier(tx)

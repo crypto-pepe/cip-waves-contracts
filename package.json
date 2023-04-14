@@ -18,6 +18,9 @@
     "test-caller": "mocha --config .mocharc.evm.caller.json ./test/evm.caller/*.test.ts",
     "test-executor": "mocha --config .mocharc.executor.json ./test/executor/*.test.ts",
     "test-mintable-token": "mocha --config .mocharc.mintable.token.json ./test/mintable.token/*.test.ts",
+    "test-signer": "mocha --config .mocharc.signer.json ./test/signer/*.test.ts",
+    "test-multisig": "mocha --config .mocharc.multisig.json ./test/multisig/*.test.ts",
+    "test-integration": "mocha --config .mocharc.integration.json ./test/integration/*.test.ts",
     "deploy": "npx ts-node scripts/migrations.ts"
   },
   "repository": {

@@ -282,3 +282,127 @@ export const concatenateBytes = (dataArray: Uint8Array[]): Uint8Array => {
   }
   return result;
 };
+
+export const numToUint8Array = (num: number): Uint8Array => {
+  const arr = new Uint8Array(8);
+  for (let i = 7; i >= 0; i--) {
+    arr[i] = num % 256;
+    num = Math.floor(num / 256);
+  }
+  return arr;
+};
+
+export const setEventMock = async function (
+  chain_: number,
+  id_: number,
+  result_: boolean,
+  techContract_: Contract
+) {
+  return await invoke(
+    {
+      dApp: techContract_.dApp,
+      call: {
+        function: 'setEventConfirmationParams',
+        args: [
+          { type: 'integer', value: chain_ },
+          { type: 'integer', value: id_ },
+          { type: 'boolean', value: result_ },
+        ],
+      },
+    },
+    techUser.privateKey,
+    env.network
+  );
+};
+
+export const setEventTypeMock = async function (
+  chain_: number,
+  id_: number,
+  type_: string,
+  techContract_: Contract
+) {
+  return await invoke(
+    {
+      dApp: techContract_.dApp,
+      call: {
+        function: 'setEventType',
+        args: [
+          { type: 'integer', value: chain_ },
+          { type: 'integer', value: id_ },
+          { type: 'string', value: type_ },
+        ],
+      },
+    },
+    techUser.privateKey,
+    env.network
+  );
+};
+
+export const setEventDataMock = async function (
+  chain_: number,
+  id_: number,
+  data_: string,
+  techContract_: Contract
+) {
+  return await invoke(
+    {
+      dApp: techContract_.dApp,
+      call: {
+        function: 'setEventData',
+        args: [
+          { type: 'integer', value: chain_ },
+          { type: 'integer', value: id_ },
+          { type: 'string', value: data_ },
+        ],
+      },
+    },
+    techUser.privateKey,
+    env.network
+  );
+};
+
+export const checkEventConfirmation = async function (
+  chain_: number,
+  id_: number,
+  address_: string,
+  techContract_: Contract
+) {
+  return await invoke(
+    {
+      dApp: techContract_.dApp,
+      call: {
+        function: 'checkEventConfirmation',
+        args: [
+          { type: 'integer', value: id_ },
+          { type: 'integer', value: chain_ },
+          { type: 'string', value: address_ },
+        ],
+      },
+    },
+    techUser.privateKey,
+    env.network
+  );
+};
+
+export const checkRawData = async function (
+  chain_: number,
+  id_: number,
+  address_: string,
+  techContract_: Contract
+) {
+  return await invoke(
+    {
+      dApp: techContract_.dApp,
+      call: {
+        function: 'checkRawData',
+        args: [
+          { type: 'integer', value: id_ },
+          { type: 'integer', value: chain_ },
+          { type: 'string', value: address_ },
+        ],
+      },
+    },
+    techUser.privateKey,
+    env.network
+  );
+};

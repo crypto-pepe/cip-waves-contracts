@@ -63,19 +63,19 @@ export default async function (
   let signerPublicKey;
   switch (network.name) {
     case 'mainnet':
-      signerPublicKey = 'GDguuKdo8ZfyHZSq8JsdEecx2GsEFT4kRERz8ujDEUcn';
+      signerPublicKey = 'FDAosgVyXn8MRQr7fQJbe5H2T2Q3emoqyauUx7F7toM5';
       signers = [
         {
           type: 'string',
-          value: '6K19i3FJ9XVbN6XgMTABb6yHvoEEwDiyyqLhnCzaqyus',
+          value: '4ZUyD6Hktg9UYVtHswdLfgJNHeZtpcttTytaCWsYkD9o',
         },
         {
           type: 'string',
-          value: '9PkzFLZBRr6ntzhRq9mEg6Zqj2s7Go6YJ9uA7yNjRDDq',
+          value: '7NGwJX2YyuNxYRGz5JK4NwVdjbyK38D73MisTD2Su2p2',
         },
         {
           type: 'string',
-          value: '7s3wum6Bp1ceUDrnXxdHc31rxv1FhzRcmPbSQaK9eiP1',
+          value: 'GX3zDYWAwhbFaNyK7dwKDsMmiffBFhPGpvJFKr8L9s6J',
         },
       ];
       break;

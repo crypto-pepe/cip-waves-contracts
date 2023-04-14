@@ -11,7 +11,7 @@ import {
 import { Context } from 'mocha';
 import { getEnvironment } from 'relax-env-json';
 import { setSteps } from '../../steps/common';
-import { setContract } from '../../steps/evm.caller';
+import { setContract } from '../../steps/signer';
 import {
   deployMultisigContract,
   setTechContract,
@@ -61,17 +61,17 @@ export const mochaHooks = async (): Promise<Mocha.RootHookObject> => {
       const techContract = await setTechContract(
         init_contracts,
         rootSeed,
-        'test/evm.caller/'
+        'test/signer/'
       );
       contracts.push(techContract);
       // set mock contract
       setSteps(techContract, accounts.filter((a) => a.name == 'tech_acc')[0]);
 
-      // Deploy evm_caller
+      // Deploy signer
       contracts.push(
-        await deployMultisigContract(init_contracts, 'evm_caller', rootSeed)
+        await deployMultisigContract(init_contracts, 'signer', rootSeed)
       );
-      setContract(contracts.filter((f) => f.name == 'evm_caller')[0]);
+      setContract(contracts.filter((f) => f.name == 'signer')[0]);
       console.table(contracts);
 
       const context: InjectableContext = {

@@ -25,7 +25,11 @@ import {
   signBytes,
   stringToBytes,
 } from '@waves/ts-lib-crypto';
-import { setSignedContext } from '../../steps/common';
+import {
+  concatenateBytes,
+  numToUint8Array,
+  setSignedContext,
+} from '../../steps/common';
 const env = getEnvironment();
 
 const OLD_PREFIX = '<<<PUBLIC--KEY--MIGRATION--ALLOWED>>>';
@@ -1279,6 +1283,67 @@ describe('Executor component', function () {
       );
     });
 
+    it('should throw when args size more than 22', async () => {
+      const contract = getContractByName('executor', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const txHash = random(32, 'Uint8Array');
+      const execChainId = 123;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set context', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: 'PAUSED', type: 'boolean', value: false },
+            { key: 'CHAIN_ID', type: 'integer', value: execChainId },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to execute',
+        'Error while executing dApp: execute: invalid args size',
+        async () => {
+          await execute(
+            techConract.dApp,
+            'funcName',
+            [
+              { type: 'integer', value: 1 },
+              { type: 'integer', value: 2 },
+              { type: 'integer', value: 3 },
+              { type: 'integer', value: 4 },
+              { type: 'integer', value: 5 },
+              { type: 'integer', value: 6 },
+              { type: 'integer', value: 7 },
+              { type: 'integer', value: 8 },
+              { type: 'integer', value: 9 },
+              { type: 'integer', value: 10 },
+              { type: 'integer', value: 11 },
+              { type: 'integer', value: 12 },
+              { type: 'integer', value: 13 },
+              { type: 'integer', value: 14 },
+              { type: 'integer', value: 15 },
+              { type: 'integer', value: 16 },
+              { type: 'integer', value: 17 },
+              { type: 'integer', value: 18 },
+              { type: 'integer', value: 19 },
+              { type: 'integer', value: 20 },
+              { type: 'integer', value: 21 },
+              { type: 'integer', value: 22 },
+              { type: 'integer', value: 23 },
+            ],
+            0, //called chain ID
+            execChainId, // execution chain ID
+            0, // nonce,
+            base58Encode(txHash),
+            'signature',
+            user
+          );
+        }
+      );
+    });
+
     it('should throw when execution chainID and chain ID equals', async () => {
       const contract = getContractByName('executor', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -1320,26 +1385,30 @@ describe('Executor component', function () {
       const techConract = getContractByName('technical', this.parent?.ctx);
       const execChainId = 124;
       const txHash = base58Encode(random(32, 'Uint8Array'));
-      const dataHash = keccak(
-        addManyByteArrays([
-          numToUint8Array(0), // caller chain
-          numToUint8Array(execChainId), // execution chain
-          numToUint8Array(0), // nonce
-          stringToBytes(txHash),
-          base58Decode(techConract.dApp), // contract
-          stringToBytes('funcName'), // func name
-          new Uint8Array(0), // args
-        ])
-      );
+      const rawData = concatenateBytes([
+        numToUint8Array(0), // caller chain
+        numToUint8Array(execChainId), // execution chain
+        numToUint8Array(0), // nonce
+        numToUint8Array(txHash.length),
+        stringToBytes(txHash),
+        base58Decode(techConract.dApp), // contract
+        numToUint8Array(8),
+        stringToBytes('funcName'), // func name
+        numToUint8Array(0), // args length
+        // numToUint8Array(0), // args
+      ]);
+      const dataHash = keccak(rawData);
       const wrongDataHash = keccak(
-        addManyByteArrays([
+        concatenateBytes([
           numToUint8Array(0), // caller chain
           numToUint8Array(execChainId), // execution chain
           numToUint8Array(0), // nonce
+          numToUint8Array(txHash.length),
           stringToBytes(txHash),
           base58Decode(techConract.dApp), // contract
+          numToUint8Array(13),
           stringToBytes('wrongFuncName'), // func name
-          new Uint8Array(0), // args
+          numToUint8Array(0), // args
         ])
       );
       // eslint-disable-next-line prettier/prettier
@@ -1390,18 +1459,21 @@ describe('Executor component', function () {
       const techConract = getContractByName('technical', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const execChainId = 125;
+      const funcName = 'funcName';
       const txHash = base58Encode(random(32, 'Uint8Array'));
-      const dataHash = keccak(
-        addManyByteArrays([
-          numToUint8Array(0), // caller chain
-          numToUint8Array(execChainId), // execution chain
-          numToUint8Array(0), // nonce
-          stringToBytes(txHash),
-          base58Decode(techConract.dApp), // contract
-          stringToBytes('funcName'), // func name
-          new Uint8Array(0), // args
-        ])
-      );
+      const rawData = concatenateBytes([
+        numToUint8Array(0), // caller chain
+        numToUint8Array(execChainId), // execution chain
+        numToUint8Array(0), // nonce
+        numToUint8Array(txHash.length),
+        stringToBytes(txHash),
+        base58Decode(techConract.dApp), // contract
+        numToUint8Array(funcName.length),
+        stringToBytes(funcName), // func name
+        numToUint8Array(0), // args length
+        // numToUint8Array(0), // args
+      ]);
+      const dataHash = keccak(rawData);
       const sign = signBytes({ privateKey: techConract.privateKey }, dataHash);
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
@@ -1449,15 +1521,20 @@ describe('Executor component', function () {
       const techConract = getContractByName('technical', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const execChainId = 126;
+      const funcName = 'funcName';
       const txHash = base58Encode(random(32, 'Uint8Array'));
-      const rawData = addManyByteArrays([
+      console.info(`TX HASH: ${txHash}`);
+      const rawData = concatenateBytes([
         numToUint8Array(0), // caller chain
         numToUint8Array(execChainId), // execution chain
         numToUint8Array(0), // nonce
+        numToUint8Array(txHash.length),
         stringToBytes(txHash),
         base58Decode(techConract.dApp), // contract
-        stringToBytes('funcName'), // func name
-        new Uint8Array(0), // args
+        numToUint8Array(funcName.length),
+        stringToBytes(funcName), // func name
+        numToUint8Array(0), // args length
+        // numToUint8Array(0), // args
       ]);
       const dataHash = keccak(rawData);
       const sign = signBytes(user.privateKey, dataHash);
@@ -1484,7 +1561,7 @@ describe('Executor component', function () {
         async () => {
           await execute(
             techConract.dApp,
-            'funcName',
+            funcName,
             [],
             0, //called chain ID
             execChainId, // execution chain ID
@@ -1510,14 +1587,17 @@ describe('Executor component', function () {
       const execChainId = 300;
       const mockCallerFunc = 'call';
       const txHash = base58Encode(random(32, 'Uint8Array'));
-      const rawData = addManyByteArrays([
+      const rawData = concatenateBytes([
         numToUint8Array(0), // caller chain
         numToUint8Array(execChainId), // execution chain
         numToUint8Array(0), // nonce
+        numToUint8Array(txHash.length),
         stringToBytes(txHash),
         base58Decode(techConract.dApp), // contract
+        numToUint8Array(mockCallerFunc.length),
         stringToBytes(mockCallerFunc), // func name
-        new Uint8Array(0), // args
+        numToUint8Array(0), // args length
+        // numToUint8Array(0), // args
       ]);
       const dataHash = keccak(rawData);
       const sign = signBytes(user.privateKey, dataHash);
@@ -1588,28 +1668,4 @@ function addByteArrays(
   result.set(array2, array1.length);
   result.set(array3, array1.length + array2.length);
   return result;
-}
-
-function addManyByteArrays(array: Uint8Array[]): Uint8Array {
-  let length = 0;
-  array.map((e) => {
-    length = length + e.length;
-  });
-  const result = new Uint8Array(length);
-  let shift = 0;
-  for (let i = 0; i < array.length; i++) {
-    result.set(array[i], shift);
-    shift = shift + array[i].length;
-  }
-  return result;
-}
-
-function numToUint8Array(num: number) {
-  let arr = new Uint8Array(8);
-  for (let i = 7; i >= 0; i--) {
-    arr[i] = num % 256;
-    num = Math.floor(num / 256);
-  }
-  // console.info(arr);
-  return arr;
 }

@@ -1,0 +1,6 @@
+{
+    "rootSeed": "waves private node seed with waves tokens",
+    "rewardHeight": 1440,
+    "percentFactor": 1000000000000,
+    "initStaking": 10000000000
+}

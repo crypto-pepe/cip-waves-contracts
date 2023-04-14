@@ -61,15 +61,15 @@ export default async function (
       witnesses = [
         {
           type: 'string',
-          value: '2x6CpTuLj2aeo9o61qJ9DXR9AjiDDfrnTMbEh3QKnXTk',
+          value: 'vQjKYYatizJFgbrfwXFiqHmquHGeyhzABNApqjpUiWz',
         },
         {
           type: 'string',
-          value: 'GAv9jqBZPVoQjM39WskUHvun4ioHsni2SsdDRXS2KK8A',
+          value: 'ArjZMV9c57eS5PvZbWuudX6VzaQHGipjVWqjmG8LdnpY',
         },
         {
           type: 'string',
-          value: '6kqabQQrAWFzGnE2S4NRTnhaoF5GTDiqHBJgtbS6kBrh',
+          value: 'Fpi7xzp8CwnRkWw1EryExvBgh7yAYDJfM2oWvXvn6XQb',
         },
       ];
       break;

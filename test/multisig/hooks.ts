@@ -3,6 +3,7 @@ import {
   Asset,
   Contract,
   createContracts,
+  getDataValue,
   getLastBlockId,
   initAccounts,
   initAssets,
@@ -10,12 +11,12 @@ import {
 } from '@pepe-team/waves-sc-test-utils';
 import { Context } from 'mocha';
 import { getEnvironment } from 'relax-env-json';
-import { setSteps } from '../../steps/common';
-import { setContract } from '../../steps/evm.caller';
+import { getTechUser, setSteps } from '../../steps/common';
 import {
   deployMultisigContract,
   setTechContract,
 } from '../../steps/hooks.common';
+import { init as initMultisig, setContract } from '../../steps/multisig';
 const env = getEnvironment();
 
 export type TestContext = Mocha.Context & Context;
@@ -61,18 +62,33 @@ export const mochaHooks = async (): Promise<Mocha.RootHookObject> => {
       const techContract = await setTechContract(
         init_contracts,
         rootSeed,
-        'test/evm.caller/'
+        'test/multisig/'
       );
       contracts.push(techContract);
       // set mock contract
-      setSteps(techContract, accounts.filter((a) => a.name == 'tech_acc')[0]);
-
-      // Deploy evm_caller
-      contracts.push(
-        await deployMultisigContract(init_contracts, 'evm_caller', rootSeed)
+      const isRedeploy = await getDataValue(
+        init_contracts.filter((c) => c.name === 'multisig')[0],
+        'MULTISIG',
+        env.network,
+        false
       );
-      setContract(contracts.filter((f) => f.name == 'evm_caller')[0]);
-      console.table(contracts);
+      setSteps(
+        !isRedeploy
+          ? techContract
+          : init_contracts.filter((c) => c.name === 'multisig')[0],
+        accounts.filter((a) => a.name == 'tech_acc')[0]
+      );
+      // deploy multisig
+      const multisig_ = await deployMultisigContract(
+        init_contracts,
+        'multisig',
+        rootSeed
+      );
+      contracts.push(multisig_);
+      setSteps(multisig_, getTechUser());
+      //set multisig
+      setContract(contracts.filter((c) => c.name == 'multisig')[0]);
+      await initRealMultisig(contracts, [getTechUser().publicKey], 1);
 
       const context: InjectableContext = {
         accounts: accounts,
@@ -84,3 +100,20 @@ export const mochaHooks = async (): Promise<Mocha.RootHookObject> => {
     },
   };
 };
+
+async function initRealMultisig(
+  contracts: Contract[],
+  owners: string[],
+  quorum: number
+) {
+  try {
+    await initMultisig(
+      contracts.filter((c) => c.name === 'multisig')[0],
+      owners,
+      quorum
+    );
+    console.info('multisig initialized');
+  } catch {
+    console.info('multisig already initialized');
+  }
+}

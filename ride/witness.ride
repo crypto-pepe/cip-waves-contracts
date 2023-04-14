@@ -213,7 +213,7 @@ func _saveEVMEventSize(val_: Int) = {
 func _loadWavesEvent(index_: Int) = {
     match getString(makeString([KEY_WAVES_EVENT, index_.toString()], SEPARATOR)) {
         case a:String =>
-            let struct = a.split(SEPARATOR)
+            let struct = a.split_51C(SEPARATOR)
             (
                 struct[0].parseIntValue(),          # callerChainId_
                 struct[1].parseIntValue(),          # executionChainId_
@@ -236,7 +236,7 @@ func _loadWavesEvent(index_: Int) = {
 func _saveWavesEvent(index_: Int, event_: (Int, Int, Int, String, String, List[String], String, Int, String, Int, Int, Int, Address)) = {
     [StringEntry(
         makeString([KEY_WAVES_EVENT, index_.toString()], SEPARATOR),
-        makeString([
+        makeString_11C([
             event_._1.toString(),                   # callerChainId_
             event_._2.toString(),                   # executionChainId_
             event_._3.toString(),                   # nonce_
@@ -257,7 +257,7 @@ func _saveWavesEvent(index_: Int, event_: (Int, Int, Int, String, String, List[S
 func _loadEVMEvent(index_: Int) = {
     match getString(makeString([KEY_EVM_EVENT, index_.toString()], SEPARATOR)) {
         case a:String =>
-            let struct = a.split(SEPARATOR)
+            let struct = a.split_51C(SEPARATOR)
             (
                 struct[0].parseIntValue(),          # callerChainId_
                 struct[1].parseIntValue(),          # executionChainId_
@@ -279,7 +279,7 @@ func _loadEVMEvent(index_: Int) = {
 func _saveEVMEvent(index_: Int, event_: (Int, Int, Int, String, String, String, Int, String, Int, Int, Int, Address)) = {
     [StringEntry(
         makeString([KEY_EVM_EVENT, index_.toString()], SEPARATOR),
-        makeString([
+        makeString_11C([
             event_._1.toString(),                   # callerChainId_
             event_._2.toString(),                   # executionChainId_
             event_._3.toString(),                   # nonce_

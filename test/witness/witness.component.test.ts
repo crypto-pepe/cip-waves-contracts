@@ -5,6 +5,7 @@ import {
   getContractByName,
   getDataValue,
   invoke,
+  setContractState,
 } from '@pepe-team/waves-sc-test-utils';
 import { expect } from 'chai';
 import { step, stepIgnoreErrorByMessage } from 'relax-steps-allure';
@@ -12,30 +13,50 @@ import { getEnvironment } from 'relax-env-json';
 import {
   addProxySecurityDeposit,
   defaultAmt,
+  getRawEvent,
   init,
+  isConfirmedEvent,
   publishEvmEventStatus,
   publishWavesEventStatus,
   setActiveWitnesses,
+  setEventType,
   setMultisig,
   submitEvmCallEvent,
   submitWavesCallEvent,
   subProxySecurityDeposit,
 } from '../../steps/witness';
-import { base58Encode, keccak, stringToBytes } from '@waves/ts-lib-crypto';
 import {
+  base16Encode,
+  base58Decode,
+  base58Encode,
+  keccak,
+  randomBytes,
+  stringToBytes,
+} from '@waves/ts-lib-crypto';
+import {
+  checkEventConfirmation,
+  checkRawData,
   concatenateBytes,
+  numToUint8Array,
   resetMintData,
   setSignedContext,
 } from '../../steps/common';
-import { array } from 'yargs';
 const env = getEnvironment();
 
 const SEPARATOR = '__';
 
 /**
  * BUG:     1) [MINOR] we have an Int overflow in Int validation (_validateInt)
- *          3) [NORMAL] we can add all same witnesses
+ *          3) [MINOR] we can add all same witnesses
+ *          5) [MINOR] Possible to withdraw security depo when contract not initialized
+ *          6) [NORMAL] Admin can change chain type on air
+ *          --
+ *          7) [MINOR] Doesn't check to min-max values for eventId and chainId isConfirmedEvent()
+ *          8) [NORMAL] Doesn't check for EVM event existing getRawEvent()
+ *
  * MEMO:    1) when we deploy contract we MUST call setMultisig AND init AND CHECK STATE!
+ *          2) try on integration to change event type after witnesses confirmation
+ *
  * SOLVED:  2) publishWavesEventStatus eventId_ can be more then last event index
  *          4) [CRITICAL] can't mint witness reward in publishWavesEventStatus
  */
@@ -43,7 +64,7 @@ describe('Witness component', function () {
   /**
    * REQUIRED: clear state
    */
-  describe('before all special tests', async () => {
+  xdescribe('before all special tests', async () => {
     it('[init] should throw when multisig not set', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       // eslint-disable-next-line prettier/prettier
@@ -66,7 +87,7 @@ describe('Witness component', function () {
 
   describe('setMultisig tests', function () {
     // Need a clear state
-    it('should throw when it is not self-call', async () => {
+    xit('should throw when it is not self-call', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       const user = getAccountByName('neo', this.parent?.ctx);
       const startMultisig = await getDataValue(
@@ -161,7 +182,7 @@ describe('Witness component', function () {
         });
       });
       await stepIgnoreErrorByMessage(
-        'try to set multisig',
+        'try to init',
         'Error while executing dApp: _onlyThisContract: revert',
         async () => {
           await invoke(
@@ -856,6 +877,7 @@ describe('Witness component', function () {
           ],
         });
       });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
       await step('add proxy security deposit', async () => {
         await addProxySecurityDeposit('', user);
       });
@@ -864,6 +886,10 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
         ).to.be.equal(defaultAmt);
+      });
+      await step('check contract balance', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance + defaultAmt);
       });
     });
 
@@ -887,6 +913,7 @@ describe('Witness component', function () {
           ],
         });
       });
+      const startContractBalance = await getBalance(contract.dApp, env.network);
       await step('add proxy security deposit', async () => {
         await addProxySecurityDeposit(user2.address, user);
       });
@@ -899,6 +926,10 @@ describe('Witness component', function () {
           // eslint-disable-next-line prettier/prettier
           await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user2.address}`, env.network)
         ).to.be.equal(startBalance + defaultAmt);
+      });
+      await step('check contract balance', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getBalance(contract.dApp, env.network)).to.be.equal(startContractBalance + defaultAmt);
       });
     });
 
@@ -1561,6 +1592,54 @@ describe('Witness component', function () {
       });
     });
 
+    it('should throw when wrong event type', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 0 },
+            { key: 'WAVES_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'EVM' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit WavesCall event',
+        'Error while executing dApp: submitWavesCallEvent: invalid type',
+        async () => {
+          await submitWavesCallEvent(
+            0,
+            0,
+            0,
+            'execution contract',
+            'function name',
+            [],
+            'txHash112',
+            122334,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
     it('simple positive', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -1594,6 +1673,8 @@ describe('Witness component', function () {
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 0 },
             { key: 'WAVES_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'WAVES' },
+            { key: `WAVES_EVENT_STATUS__${hash}`, type: 'integer', value: 0 },
           ],
         });
       });
@@ -1627,6 +1708,8 @@ describe('Witness component', function () {
         expect(await getDataValue(contract, 'WAVES_EVENT_CALLER__0__0', env.network)).to.be.equal(0);
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'WAVES_EVENT_CALLER__0__SIZE', env.network)).to.be.equal(1);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `WAVES_EVENT_STATUS__${hash}`, env.network)).to.be.equal(1);
       });
     });
 
@@ -1636,6 +1719,22 @@ describe('Witness component', function () {
       const user = getAccountByName('neo', this.parent?.ctx);
       const availBalance = 1000000000;
       const eventDepo = 100000000;
+      const eChainId = 2;
+      const txHash = 'txHash001';
+      const hash = base58Encode(
+        keccak(
+          concatenateBytes([
+            numToUint8Array(3),
+            numToUint8Array(eChainId),
+            numToUint8Array(1),
+            stringToBytes('executionContract'),
+            stringToBytes('functionName'),
+            stringToBytes(''),
+            stringToBytes(txHash),
+            numToUint8Array(13),
+          ])
+        )
+      );
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
       });
@@ -1649,18 +1748,20 @@ describe('Witness component', function () {
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 66 },
             { key: 'WAVES_EVENT_CALLER__0__SIZE', type: 'integer', value: 13 },
+            { key: `EVENT_TYPE__${eChainId}`, type: 'string', value: 'WAVES' },
+            { key: `WAVES_EVENT_STATUS__${hash}`, type: 'integer', value: 0 },
           ],
         });
       });
       await step('submit WavesCall event', async () => {
         await submitWavesCallEvent(
           3,
-          2,
+          eChainId,
           1,
           'executionContract',
           'functionName',
           [],
-          'txHash001',
+          txHash,
           13,
           user
         );
@@ -1671,12 +1772,12 @@ describe('Witness component', function () {
         async () => {
           await submitWavesCallEvent(
             3,
-            2,
+            eChainId,
             1,
             'executionContract',
             'functionName',
             [],
-            'txHash001',
+            txHash,
             13,
             user
           );
@@ -1690,6 +1791,7 @@ describe('Witness component', function () {
       const user = getAccountByName('neo', this.parent?.ctx);
       const availBalance = 1000000000;
       const eventDepo = 1000000001;
+      const eChainId = 2;
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
       });
@@ -1703,6 +1805,7 @@ describe('Witness component', function () {
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 13 },
             { key: 'WAVES_EVENT_CALLER__0__SIZE', type: 'integer', value: 66 },
+            { key: `EVENT_TYPE__${eChainId}`, type: 'string', value: 'WAVES' },
           ],
         });
       });
@@ -1712,12 +1815,12 @@ describe('Witness component', function () {
         async () => {
           await submitWavesCallEvent(
             1,
-            2,
+            eChainId,
             3,
             'executionContract',
             'functionName',
             [],
-            'txHash00123',
+            randomBytes(32).toString(), // no matter what the string here
             66,
             user
           );
@@ -2288,9 +2391,6 @@ describe('Witness component', function () {
         expect(
           await getDataValue(techConract, 'MINT_AMOUNT', env.network)
         ).to.be.equal(reward);
-        // console.info(`WITNESS_1: ${await getDataValue(techConract, 'WITNESS_1', env.network)}`);
-        // console.info(`WITNESS_2: ${await getDataValue(techConract, 'WITNESS_2', env.network)}`);
-        // console.info(`WITNESS_3: ${await getDataValue(techConract, 'WITNESS_3', env.network)}`);
         expect(
           await getDataValue(techConract, 'WITNESS_1', env.network)
         ).to.be.equal(user2.address);
@@ -3081,6 +3181,53 @@ describe('Witness component', function () {
       });
     });
 
+    it('should throw when wrong event type', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const availBalance = 1000000000;
+      const eventDepo = 100000000;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `PROXY_SECURITY_DEPOSIT__${user.address}`, type: 'integer', value: availBalance },
+            // eslint-disable-next-line prettier/prettier
+            { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
+            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: 0 },
+            { key: 'WAVES_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'WAVES' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to submit WavesCall event',
+        'Error while executing dApp: submitEVMCallEvent: invalid type',
+        async () => {
+          await submitEvmCallEvent(
+            0,
+            0,
+            0,
+            'executionContract',
+            'calldata',
+            'txHash',
+            0,
+            user
+          );
+        }
+      );
+      await step('check state', async () => {
+        expect(
+          // eslint-disable-next-line prettier/prettier
+          await getDataValue(contract, `PROXY_SECURITY_DEPOSIT__${user.address}`, env.network)
+        ).to.be.equal(availBalance);
+      });
+    });
+
     it('simple positive', async () => {
       const contract = getContractByName('witness', this.parent?.ctx);
       const techConract = getContractByName('technical', this.parent?.ctx);
@@ -3113,6 +3260,8 @@ describe('Witness component', function () {
             // eslint-disable-next-line prettier/prettier
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'EVM' },
+            { key: `EVM_EVENT_STATUS__${hash}`, type: 'integer', value: 0 },
           ],
         });
       });
@@ -3145,6 +3294,8 @@ describe('Witness component', function () {
         expect(await getDataValue(contract, 'EVM_EVENT_CALLER__0__0', env.network)).to.be.equal(0);
         // eslint-disable-next-line prettier/prettier
         expect(await getDataValue(contract, 'EVM_EVENT_CALLER__0__SIZE', env.network)).to.be.equal(1);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVM_EVENT_STATUS__${hash}`, env.network)).to.be.equal(1);
       });
     });
 
@@ -3154,6 +3305,19 @@ describe('Witness component', function () {
       const user = getAccountByName('neo', this.parent?.ctx);
       const availBalance = 1000000000;
       const eventDepo = 100000000;
+      const hash = base58Encode(
+        keccak(
+          concatenateBytes([
+            new Uint8Array(8), // RIDE Int 0
+            new Uint8Array(8),
+            new Uint8Array(8),
+            stringToBytes('executionContract1'),
+            stringToBytes('calldata2'),
+            stringToBytes('txHash3'),
+            new Uint8Array(8),
+          ])
+        )
+      );
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
       });
@@ -3167,6 +3331,8 @@ describe('Witness component', function () {
             // eslint-disable-next-line prettier/prettier
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'EVM' },
+            { key: `EVM_EVENT_STATUS__${hash}`, type: 'integer', value: 0 },
           ],
         });
       });
@@ -3206,6 +3372,19 @@ describe('Witness component', function () {
       const user = getAccountByName('neo', this.parent?.ctx);
       const availBalance = 1000000000;
       const eventDepo = 1000000001;
+      const hash = base58Encode(
+        keccak(
+          concatenateBytes([
+            new Uint8Array(8), // RIDE Int 0
+            new Uint8Array(8),
+            new Uint8Array(8),
+            stringToBytes('executionContract3'),
+            stringToBytes('calldata2'),
+            stringToBytes('txHash1'),
+            new Uint8Array(8),
+          ])
+        )
+      );
       await step('set multisig', async () => {
         await setMultisig(techConract.dApp);
       });
@@ -3219,6 +3398,8 @@ describe('Witness component', function () {
             // eslint-disable-next-line prettier/prettier
             { key: 'PROXY_SECURITY_DEPOSIT_PER_EVENT', type: 'integer', value: eventDepo },
             { key: 'EVM_EVENT_CALLER__0__SIZE', type: 'integer', value: 0 },
+            { key: 'EVENT_TYPE__0', type: 'string', value: 'EVM' },
+            { key: `EVM_EVENT_STATUS__${hash}`, type: 'integer', value: 0 },
           ],
         });
       });
@@ -4028,6 +4209,607 @@ describe('Witness component', function () {
         expect(
           await getDataValue(techConract, 'WITNESS_3', env.network)
         ).to.be.equal(user.address);
+      });
+    });
+  });
+
+  describe('setEventType tests', function () {
+    it('should throw when not self-call', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to set event type',
+        'Error while executing dApp: _onlyThisContract: revert',
+        async () => {
+          await invoke(
+            {
+              dApp: contract.dApp,
+              call: {
+                function: 'setEventType',
+                args: [
+                  { type: 'integer', value: chainId },
+                  { type: 'string', value: 'WAVES' },
+                ],
+              },
+            },
+            user.privateKey,
+            env.network
+          );
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).is.empty;
+      });
+    });
+
+    it('should throw when not initialized', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: false },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to set event type',
+        'Error while executing dApp: _whenInitialized: revert',
+        async () => {
+          await setEventType(chainId, 'WAVES');
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).is.empty;
+      });
+    });
+
+    it('should throw when execution chain ID less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = -1;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to set event type',
+        'Error while executing dApp: setEventType: invalid execChainId',
+        async () => {
+          await setEventType(chainId, 'WAVES');
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).is.empty;
+      });
+    });
+
+    it('should throw when wrong event type', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: '' },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to set event type',
+        'Error while executing dApp: setEventType: invalid event type',
+        async () => {
+          await setEventType(chainId, 'EVWAVES');
+        }
+      );
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).is.empty;
+      });
+    });
+
+    it('simple positive', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 333;
+      const chainName = 'WAVES';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: '' },
+          ],
+        });
+      });
+      await step('set event type', async () => {
+        await setEventType(chainId, chainName);
+      });
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).to.be.equal(chainName);
+      });
+    });
+
+    // MEMO: try on integration to change event type after witnesses confirmation
+    it('can change event type for chain', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 777;
+      const oldChainName = 'WAVES';
+      const newChainName = 'EVM';
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: oldChainName },
+          ],
+        });
+      });
+      await step('set event type', async () => {
+        await setEventType(chainId, newChainName);
+      });
+      await step('check state', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(contract, `EVENT_TYPE__${chainId}`, env.network, '')).to.be.equal(newChainName);
+      });
+    });
+  });
+
+  describe('isConfirmedEvent tests', function () {
+    it('simple positive event confirmed', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+        await setContractState(
+          {
+            data: [{ key: 'CONFIRMATION', type: 'boolean', value: false }],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('get isConfirmed event', async () => {
+        // eslint-disable-next-line prettier/prettier
+        await checkEventConfirmation(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check confirmation', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'CONFIRMATION', env.network)).is.true;
+      });
+    });
+
+    it('EVM event in progress', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'EVM' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__calldata__txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'EVM_EVENT_STATUS__eventHash', type: 'integer', value: 1 },
+          ],
+        });
+        await setContractState(
+          {
+            data: [{ key: 'CONFIRMATION', type: 'boolean', value: true }],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('get isConfirmed event', async () => {
+        // eslint-disable-next-line prettier/prettier
+        await checkEventConfirmation(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check confirmation', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'CONFIRMATION', env.network)).is.false;
+      });
+    });
+
+    it('WAVES event rejected', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 3 },
+          ],
+        });
+        await setContractState(
+          {
+            data: [{ key: 'CONFIRMATION', type: 'boolean', value: true }],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('get isConfirmed event', async () => {
+        // eslint-disable-next-line prettier/prettier
+        await checkEventConfirmation(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check confirmation', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'CONFIRMATION', env.network)).is.false;
+      });
+    });
+
+    it('can get response when contract is not initialized', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: false },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'EVM' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__calldata__txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'EVM_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+        await setContractState(
+          {
+            data: [{ key: 'CONFIRMATION', type: 'boolean', value: false }],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('get isConfirmed event', async () => {
+        // eslint-disable-next-line prettier/prettier
+        await checkEventConfirmation(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check confirmation', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'CONFIRMATION', env.network)).is.true;
+      });
+    });
+
+    it('should throw when unknown event in EVM', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to get isConfirmed event',
+        'Error while executing dApp: isConfirmedEvent: no such event',
+        async () => {
+          // eslint-disable-next-line prettier/prettier
+          await isConfirmedEvent(chainId, 333666999, user);
+        }
+      );
+    });
+
+    it('should throw when event in unkhown chain', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to get isConfirmed event',
+        'Error while executing dApp: isConfirmedEvent: no such event',
+        async () => {
+          // eslint-disable-next-line prettier/prettier
+          await isConfirmedEvent(667755, eventId, user);
+        }
+      );
+    });
+  });
+
+  describe('getRawEvent tests', function () {
+    it('should throw when chain ID less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = -1;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to getRawEvent',
+        'Error while executing dApp: getRawEvent: invalid execChainId',
+        async () => {
+          await getRawEvent(eventId, chainId, user);
+        }
+      );
+    });
+
+    it('should throw when event index less than 0', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = -1;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to getRawEvent',
+        'Error while executing dApp: getRawEvent: invalid event idx',
+        async () => {
+          await getRawEvent(eventId, chainId, user);
+        }
+      );
+    });
+
+    it('should throw when event index more than last idx', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: eventId },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to getRawEvent',
+        'Error while executing dApp: getRawEvent: invalid event idx',
+        async () => {
+          await getRawEvent(eventId, chainId, user);
+        }
+      );
+    });
+
+    it('should throw when invalid event type', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const user = getAccountByName('neo', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____txHash__010__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: eventId },
+          ],
+        });
+      });
+      await stepIgnoreErrorByMessage(
+        'try to getRawEvent',
+        'Error while executing dApp: getRawEvent: invalid event type',
+        async () => {
+          await getRawEvent(eventId, chainId + 1, user);
+        }
+      );
+    });
+
+    it('simple positive with EVM event', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'EVM' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `EVM_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__calldata__txHash__10__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'EVM_EVENT_STATUS__eventHash', type: 'integer', value: 2 },
+            { key: 'EVM_EVENT_SIZE', type: 'integer', value: eventId },
+          ],
+        });
+        await setContractState(
+          {
+            data: [
+              { key: 'DATA_TYPE', type: 'string', value: 'ololo' },
+              { key: 'DATA_HASH', type: 'string', value: 'ololo' },
+            ],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('getRawEvent', async () => {
+        await checkRawData(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check mock', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'DATA_TYPE', env.network)).to.be.equal('EVM');
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'DATA_HASH', env.network)).is.empty;
+      });
+    });
+
+    it('get data of WAVES event', async () => {
+      const contract = getContractByName('witness', this.parent?.ctx);
+      const techConract = getContractByName('technical', this.parent?.ctx);
+      const chainId = 1366;
+      const eventId = 1488;
+      await step('set multisig', async () => {
+        await setMultisig(techConract.dApp);
+      });
+      await step('set state', async () => {
+        await setSignedContext(contract, {
+          data: [
+            { key: 'INIT', type: 'boolean', value: true },
+            { key: `EVENT_TYPE__${chainId}`, type: 'string', value: 'WAVES' },
+            // eslint-disable-next-line prettier/prettier
+            { key: `WAVES_EVENT__${eventId}`, type: 'string', value: `0__${chainId}__0__${techConract.dApp}__func____aa__10__eventHash__3__3__13661366__${techConract.dApp}` },
+            { key: 'WAVES_EVENT_STATUS__eventHash', type: 'integer', value: 1 },
+            { key: 'WAVES_EVENT_SIZE', type: 'integer', value: eventId + 1 },
+          ],
+        });
+        await setContractState(
+          {
+            data: [
+              { key: 'DATA_TYPE', type: 'string', value: '' },
+              { key: 'DATA_HASH', type: 'string', value: '' },
+            ],
+          },
+          { privateKey: techConract.privateKey },
+          env.network
+        );
+      });
+      await step('getRawEvent', async () => {
+        await checkRawData(chainId, eventId, contract.dApp, techConract);
+      });
+      await step('check mock', async () => {
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'DATA_TYPE', env.network)).to.be.equal('WAVES');
+        const data_ = concatenateBytes([
+          new Uint8Array(8),
+          numToUint8Array(chainId),
+          new Uint8Array(8),
+          numToUint8Array(2),
+          stringToBytes('aa'),
+          base58Decode(techConract.dApp),
+          numToUint8Array(4),
+          stringToBytes('func'),
+          numToUint8Array(1), // pseudolength for args (because array)
+          new Uint8Array(8), // 0-idx el
+        ]);
+        // eslint-disable-next-line prettier/prettier
+        expect(await getDataValue(techConract, 'DATA_HASH', env.network)).to.be.equal(base16Encode(data_));
       });
     });
   });
